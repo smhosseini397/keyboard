@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="240" viewBox="0 0 640 240">
+  <rect width="640" height="240" rx="36" fill="#6750A4"/>
+  <rect x="42" y="42" width="156" height="156" rx="28" fill="#fff"/>
+  <path d="M82 157 L121 82 L140 82 L178 157 L156 157 L148 137 L108 137 L99 157 Z M116 119 L140 119 L128 94 Z" fill="#6750A4"/>
+  <text x="230" y="112" font-family="sans-serif" font-size="54" font-weight="700" fill="#fff">KeyFarsi</text>
+  <text x="232" y="160" font-family="sans-serif" font-size="28" fill="#EEE8FA">کلید فارسی</text>
+</svg>
