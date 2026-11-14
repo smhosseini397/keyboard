@@ -805,14 +805,32 @@ class KeyFarsiIme : InputMethodService() {
         root.addView(actions)
     }
 
-    private fun addKeyboardRow(
-        root: LinearLayout,
-        line: LinearLayout
-    ) {
+   
+private fun addKeyboardRow(
+    root: LinearLayout,
+    line: LinearLayout
+) {
+    val configuredWidth = prefs.getInt("key_width", 0)
+
+    if (configuredWidth <= 0) {
+        // عرض خودکار: کلیدها فضای موجود را تقسیم می‌کنند.
+        root.addView(
+            line,
+            LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            )
+        )
+    } else {
+        // عرض دستی: اندازه کلیدها حفظ می‌شود
+        // و در صورت بیشتر شدن عرض ردیف، پیمایش افقی فعال می‌شود.
         val scroll = HorizontalScrollView(this).apply {
             isHorizontalScrollBarEnabled = false
+            isVerticalScrollBarEnabled = false
             clipChildren = false
             clipToPadding = false
+            fillViewport = false
+
             addView(
                 line,
                 ViewGroup.LayoutParams(
@@ -821,6 +839,17 @@ class KeyFarsiIme : InputMethodService() {
                 )
             )
         }
+
+        root.addView(
+            scroll,
+            LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            )
+        )
+    }
+}
+
 
         root.addView(
             scroll,
