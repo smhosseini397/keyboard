@@ -1,11 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
 <input-method xmlns:android="http://schemas.android.com/apk/res/android"
-    android:supportsSwitchingToNextInputMethod="true">
+    android:settingsActivity="com.farshekashan.keyfarsi.SettingsActivity"
+    android:supportsSwitchingToNextInputMethod="true"
+    android:isDefault="false">
+
+    <!-- ✅ زیرنوع فارسی (پیش‌فرض) -->
     <subtype
         android:label="@string/subtype_fa"
         android:imeSubtypeLocale="fa_IR"
-        android:imeSubtypeMode="keyboard" />
+        android:imeSubtypeMode="keyboard"
+        android:isDefault="true"
+        android:isAsciiCapable="false"
+        android:imeSubtypeExtraValue="KeyboardLayoutSet=fa" />
+
+    <!-- ✅ زیرنوع انگلیسی -->
     <subtype
         android:label="@string/subtype_en"
         android:imeSubtypeLocale="en_US"
-        android:imeSubtypeMode="keyboard" />
+        android:imeSubtypeMode="keyboard"
+        android:isAsciiCapable="true"
+        android:imeSubtypeExtraValue="KeyboardLayoutSet=qwerty" />
+
 </input-method>
