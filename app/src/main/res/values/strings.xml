@@ -1,5 +1,96 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
+
+    <!-- ✅ اطلاعات برنامه -->
     <string name="app_name">کلید فارسی</string>
     <string name="subtype_fa">فارسی</string>
     <string name="subtype_en">English</string>
+
+    <!-- ✅ نوار ابزار کیبورد -->
+    <string name="toolbar_brand">KeyFarsi</string>
+    <string name="toolbar_numbers">۱۲۳</string>
+    <string name="toolbar_symbols">=\\&lt;</string>
+    <string name="toolbar_emoji">😊</string>
+    <string name="toolbar_clipboard">📋</string>
+    <string name="toolbar_lang_fa">فا</string>
+    <string name="toolbar_lang_en">EN</string>
+
+    <!-- ✅ دکمه‌های اصلی کیبورد -->
+    <string name="key_shift">⇧</string>
+    <string name="key_backspace">⌫</string>
+    <string name="key_space">فاصله</string>
+    <string name="key_enter">↵</string>
+    <string name="key_comma">,</string>
+    <string name="key_dot">.</string>
+    <string name="key_globe">🌐</string>
+
+    <!-- ✅ دکمه‌های ناوبری حالت‌ها -->
+    <string name="mode_letters">حروف</string>
+    <string name="mode_numbers">اعداد</string>
+    <string name="mode_symbols">نمادها</string>
+    <string name="mode_emoji">ایموجی</string>
+    <string name="mode_back">بازگشت</string>
+    <string name="mode_back_to_letters">بازگشت به حروف</string>
+
+    <!-- ✅ کلیپ‌بورد -->
+    <string name="clipboard_empty">هنوز متنی ذخیره نشده است</string>
+    <string name="clipboard_save_current">ذخیره متن فعلی</string>
+    <string name="clipboard_pin_first">ابتدا پین را بردارید</string>
+    <string name="clipboard_pin">📌</string>
+    <string name="clipboard_unpin">☆</string>
+    <string name="clipboard_delete">×</string>
+    <string name="clipboard_pinned_prefix">📌 </string>
+
+    <!-- ✅ نمادهای صفحه نمادها (اینها نماد هستن، ترجمه نمی‌شن) -->
+    <string name="symbol_percent">%</string>
+    <string name="symbol_at">@</string>
+    <string name="symbol_ampersand">&amp;</string>
+    <string name="symbol_star">*</string>
+    <string name="symbol_lparen">(</string>
+    <string name="symbol_rparen">)</string>
+    <string name="symbol_exclaim">!</string>
+    <string name="symbol_plus">+</string>
+    <string name="symbol_underscore">_</string>
+    <string name="symbol_equal">=</string>
+
+    <!-- ✅ عملیات ریاضی -->
+    <string name="math_plus">+</string>
+    <string name="math_minus">−</string>
+    <string name="math_times">×</string>
+    <string name="math_divide">÷</string>
+
+    <!-- ✅ صفحه تنظیمات: عنوان‌ها -->
+    <string name="settings_title">⌨️  کلید فارسی</string>
+    <string name="settings_intro">کیبورد فارسی و انگلیسی با صفحه اعداد ماشین‌حسابی و کلیپ‌بورد</string>
+    <string name="settings_section_size">تنظیمات اندازه</string>
+    <string name="settings_section_appearance">ظاهر</string>
+
+    <!-- ✅ صفحه تنظیمات: دکمه‌ها -->
+    <string name="settings_enable_keyboard">۱. فعال‌سازی کیبورد</string>
+    <string name="settings_choose_keyboard">۲. انتخاب کلید فارسی</string>
+    <string name="settings_save">ذخیره</string>
+    <string name="settings_reset">بازنشانی همه تنظیمات به پیش‌فرض</string>
+
+    <!-- ✅ صفحه تنظیمات: فیلدها -->
+    <string name="settings_keyboard_width">عرض کیبورد (dp)</string>
+    <string name="settings_keyboard_height">ارتفاع کل کیبورد (dp)</string>
+    <string name="settings_key_width">عرض دکمه‌ها (dp)</string>
+    <string name="settings_key_height">ارتفاع دکمه‌ها (dp)</string>
+    <string name="settings_key_gap">فاصله بین دکمه‌ها (dp)</string>
+    <string name="settings_dark_mode">تم تیره</string>
+    <string name="settings_hint_any_number">عدد دلخواه</string>
+
+    <!-- ✅ صفحه تنظیمات: راهنما و پیام‌ها -->
+    <string name="settings_note">تغییر اندازه پس از باز و بسته کردن کیبورد اعمال می‌شود.\nعرض دکمه ۰ = عرض خودکار (تقسیم مساوی).\nبرای نمایش کامل کیبورد، ارتفاع کل را کمتر از ارتفاع صفحه تنظیم کنید.</string>
+    <string name="settings_toast_saved">ذخیره شد</string>
+    <string name="settings_toast_invalid">یک عدد معتبر وارد کنید</string>
+    <string name="settings_toast_min">حداقل مقدار %1$d است</string>
+    <string name="settings_toast_max">حداکثر مقدار %1$d است</string>
+    <string name="settings_toast_reset">تنظیمات بازنشانی شد</string>
+    <string name="settings_range_label">(%1$d تا %2$d)</string>
+
+    <!-- ✅ قالب‌های پویا -->
+    <string name="format_label_with_range">%1$s  (%2$d تا %3$d)</string>
+    <string name="format_clipboard_preview">%1$s%2$s</string>
+
 </resources>
