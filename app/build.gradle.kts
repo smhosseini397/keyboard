@@ -29,3 +29,15 @@ android {
         jvmTarget = "17"
     }
 }
+
+dependencies {
+    // ✅ برای WindowInsetsCompat و ViewCompat (رفع مشکل زیر اکشن‌بار)
+    implementation("androidx.core:core-ktx:1.13.1")
+
+    // ✅ برای مدیریت بهتر Activity و edge-to-edge
+    implementation("androidx.activity:activity-ktx:1.9.3")
+
+    // ✅ برای ایموجی‌ها روی دستگاه‌های قدیمی (minSdk 23)
+    implementation("androidx.emoji2:emoji2:1.5.0")
+    implementation("androidx.emoji2:emoji2-views-helper:1.5.0")
+}
