@@ -1,27 +1,153 @@
+
 package com.farshekashan.keyfarsi
 
-import android.inputmethodservice.InputMethodService
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
-import android.graphics.Typeface
 import android.graphics.Color
+import android.graphics.Typeface
+import android.graphics.drawable.GradientDrawable
+import android.inputmethodservice.InputMethodService
+import android.text.InputType
 import android.view.Gravity
+import android.view.KeyEvent
 import android.view.View
-import android.view.inputmethod.InputConnection
+import android.view.ViewGroup
+import android.view.inputmethod.EditorInfo
 import android.widget.*
 import org.json.JSONArray
 import org.json.JSONObject
+import kotlin.math.max
+import kotlin.math.min
 
 class KeyFarsiIme : InputMethodService() {
+
     private var english = false
     private var numberMode = false
     private var clipboardMode = false
-    private val prefs by lazy { getSharedPreferences("keyfarsi", MODE_PRIVATE) }
-    private val clipboard by lazy { getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager }
-    private val clipboardListener = ClipboardManager.OnPrimaryClipChangedListener {
-        if (isInputViewShown && !clipboardMode) saveClipboardCurrent()
+    private var symbolMode = false
+    private var emojiMode = false
+    private var uppercase = false
+
+    private var emojiCategory = 0
+
+    private var suggestionRow: LinearLayout? = null
+    private var keyboardRoot: LinearLayout? = null
+
+    private val prefs by lazy {
+        getSharedPreferences("keyfarsi", MODE_PRIVATE)
     }
+
+    private val clipboard by lazy {
+        getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+    }
+
+    private val emojiCategories = listOf(
+        "😀" to listOf(
+            "😀","😃","😄","😁","😆","😅","😂","🤣",
+            "😊","😇","🙂","🙃","😉","😌","😍","🥰",
+            "😘","😗","😙","😚","😋","😛","😜","🤪",
+            "😎","🤓","🧐","🤔","🤗","🤭","🤫","🤥",
+            "😐","😑","😶","🙄","😏","😣","😥","😮",
+            "🤐","😯","😪","😫","🥱","😴","😷","🤒",
+            "🤕","🤢","🤮","🤧","🥵","🥶","🥴","😵",
+            "🤯","🤠","🥳","🥸","😈","👿","💀","👻"
+        ),
+        "❤️" to listOf(
+            "❤️","🧡","💛","💚","💙","💜","🖤","🤍",
+            "🤎","💔","❣️","💕","💞","💓","💗","💖",
+            "💘","💝","💟","♥️","💌","💋","💍","💎"
+        ),
+        "👋" to listOf(
+            "👋","🤚","🖐️","✋","🖖","👌","🤌","🤏",
+            "✌️","🤞","🫰","🤟","🤘","🤙","👈","👉",
+            "👆","🖕","👇","☝️","👍","👎","✊","👊",
+            "🤛","🤜","👏","🙌","👐","🤲","🤝","🙏",
+            "✍️","💅","💪","🦾","🦿","🦵","🦶","👂",
+            "👃","🧠","🫀","🫁","🦷","🦴","👀","👁️"
+        ),
+        "🐱" to listOf(
+            "🐶","🐱","🐭","🐹","🐰","🦊","🐻","🐼",
+            "🐻‍❄️","🐨","🐯","🦁","🐮","🐷","🐸","🐵",
+            "🐔","🐧","🐦","🐤","🦆","🦅","🦉","🦇",
+            "🐺","🐗","🐴","🦄","🐝","🪱","🐛","🦋",
+            "🐌","🐞","🐜","🪰","🕷️","🦂","🐢","🐍",
+            "🦎","🦖","🦕","🐙","🦑","🦐","🦀","🐠"
+        ),
+        "🍎" to listOf(
+            "🍎","🍏","🍊","🍋","🍌","🍉","🍇","🍓",
+            "🫐","🍈","🍒","🍑","🥭","🍍","🥥","🥝",
+            "🍅","🍆","🥑","🥦","🥬","🥒","🌶️","🫑",
+            "🌽","🥕","🧄","🧅","🥔","🍠","🥐","🥯",
+            "🍞","🥖","🥨","🧀","🥚","🍳","🧈","🥞",
+            "🧇","🥓","🥩","🍗","🍖","🌭","🍔","🍟"
+        ),
+        "⚽" to listOf(
+            "⚽","🏀","🏈","⚾","🥎","🎾","🏐","🏉",
+            "🥏","🎱","🪀","🏓","🏸","🏒","🏑","🥍",
+            "🏏","🪃","🥅","⛳","🪁","🏹","🎣","🤿",
+            "🥊","🥋","🎽","🛹","🛼","🛷","⛸️","🥌",
+            "🎿","⛷️","🏂","🏋️","🤼","🤸","⛹️","🤺"
+        ),
+        "🚗" to listOf(
+            "🚗","🚕","🚙","🚌","🚎","🏎️","🚓","🚑",
+            "🚒","🚐","🛻","🚚","🚛","🚜","🛵","🏍️",
+            "🚲","🛴","🚏","🛣️","🛤️","⛽","🚨","🚥",
+            "🚦","🚧","⚓","⛵","🚤","🛳️","✈️","🚀",
+            "🛸","🚁","🚂","🚆","🚇","🚊","🚉","🚄"
+        ),
+        "💡" to listOf(
+            "💡","📱","💻","⌨️","🖥️","🖨️","🖱️","🖲️",
+            "💾","💿","📀","📷","📸","📹","🎥","📞",
+            "☎️","📺","📻","🎙️","🎚️","🎛️","🧭","⏱️",
+            "⏰","⌚","🔋","🪫","🔌","💡","🔦","🕯️",
+            "🧯","🛠️","🔧","🔨","⚙️","🧰","🪛","🔩"
+        ),
+        "🌸" to listOf(
+            "🌸","🌹","🌺","🌻","🌼","🌷","🪻","💐",
+            "🌱","🌿","☘️","🍀","🌵","🌴","🌳","🌲",
+            "🌾","🌞","🌝","🌛","🌜","🌚","🌕","🌙",
+            "⭐","🌟","✨","⚡","🔥","💧","🌊","☀️",
+            "🌈","☁️","⛅","🌤️","🌧️","⛈️","❄️","☃️"
+        ),
+        "🎉" to listOf(
+            "🎉","🎊","🎈","🎁","🎀","🎂","🍰","🧁",
+            "🎄","🎃","🎆","🎇","🧨","✨","🎐","🎏",
+            "🎎","🎍","🎋","🎑","🧧","🎗️","🎟️","🎫",
+            "🏆","🥇","🥈","🥉","🏅","🎖️","🎯","🎮",
+            "🕹️","🎲","♟️","🧩","🪅","🪩","🎨","🖼️"
+        )
+    )
+
+    private val symbolPages = listOf(
+        listOf(
+            "؟","،","؛",":","!","؟","؛","…",
+            ". ",",","'","\"","(",")","[","]",
+            "{","}","<",">","/","\\","|","_",
+            "-","+","=","*","%","@","#","$"
+        ),
+        listOf(
+            "^","~","`","°","±","×","÷","√",
+            "≠","≈","≤","≥","∞","π","∑","∆",
+            "€","£","¥","₹","¢","₽","₺","₿",
+            "&","!","?","§","©","®","™","✓",
+            "✔","✕","✖","★","☆","•","●","○"
+        ),
+        listOf(
+            "٪","٫","٬","ـ","ٔ","‌","‍","ٓ",
+            "َ","ِ","ُ","ّ","ْ","ً","ٍ","ٌ",
+            "«","»","‹","›","¿","¡","¶","†",
+            "‡","‰","‱","※","℃","℉","←","→",
+            "↑","↓","↔","↕","⇐","⇒","⇑","⇓"
+        )
+    )
+
+    private val clipboardListener =
+        ClipboardManager.OnPrimaryClipChangedListener {
+            if (isInputViewShown && !clipboardMode) {
+                saveClipboardCurrent()
+            }
+        }
 
     override fun onCreate() {
         super.onCreate()
@@ -37,159 +163,1035 @@ class KeyFarsiIme : InputMethodService() {
 
     private fun buildKeyboard(): View {
         val dark = prefs.getBoolean("dark", false)
-        val bg = if (dark) 0xFF202127.toInt() else 0xFFE9E5EF.toInt()
-        val keyBg = if (dark) 0xFF373640.toInt() else Color.WHITE
-        val fg = if (dark) Color.WHITE else 0xFF25212C.toInt()
+
+        val background = if (dark) {
+            Color.rgb(29, 29, 35)
+        } else {
+            Color.rgb(232, 228, 239)
+        }
+
+        val normalKey = if (dark) {
+            Color.rgb(57, 55, 66)
+        } else {
+            Color.WHITE
+        }
+
+        val foreground = if (dark) Color.WHITE else Color.rgb(38, 34, 47)
+
+        val accent = Color.rgb(103, 80, 164)
+
+        val requestedWidth = prefs.getInt("keyboard_width", 0)
+        val requestedHeight = prefs.getInt("keyboard_height", 270)
+
+        val screenWidth = resources.displayMetrics.widthPixels
+        val actualWidth = if (requestedWidth > 0) {
+            min(dp(requestedWidth), screenWidth)
+        } else {
+            ViewGroup.LayoutParams.MATCH_PARENT
+        }
+
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(4), dp(5), dp(4), dp(5))
-            setBackgroundColor(bg)
-        }
-        val top = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
-        top.addView(label("KeyFarsi", 14f, fg).apply { setTypeface(null, Typeface.BOLD) }, LinearLayout.LayoutParams(0, dp(36), 1f))
-        top.addView(actionButton(if (numberMode) "حروف" else "۱۲۳", keyBg, fg) {
-            numberMode = !numberMode; clipboardMode = false; setInputView(buildKeyboard())
-        })
-        top.addView(actionButton("📋", keyBg, fg) {
-            clipboardMode = !clipboardMode; numberMode = false; setInputView(buildKeyboard())
-        })
-        top.addView(actionButton(if (english) "EN" else "فا", 0xFF6750A4.toInt(), Color.WHITE) {
-            english = !english; numberMode = false; clipboardMode = false; setInputView(buildKeyboard())
-        })
-        root.addView(top)
-
-        if (clipboardMode) {
-            buildClipboard(root, keyBg, fg)
-            return root
-        }
-        if (numberMode) {
-            buildNumberPad(root, keyBg, fg)
-            return root
+            gravity = Gravity.CENTER_HORIZONTAL
+            setBackgroundColor(background)
+            setPadding(dp(4), dp(4), dp(4), dp(4))
+            clipChildren = false
+            clipToPadding = false
+            layoutParams = ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                if (requestedHeight > 0) dp(requestedHeight)
+                else ViewGroup.LayoutParams.WRAP_CONTENT
+            )
         }
 
-        val rows = if (english) listOf(
-            "qwertyuiop", "asdfghjkl", "zxcvbnm"
-        ) else listOf(
-            "ضصثقفغعهخحج", "شسیبلاتنمکگ", "ظطزرذدپو"
-        )
-        rows.forEachIndexed { index, row ->
-            val line = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
-            if (index == 2) line.addView(actionButton("⇧", keyBg, fg) { })
-            row.forEach { ch ->
-                line.addView(keyButton(ch.toString(), keyBg, fg) { commit(ch.toString()) },
-                    LinearLayout.LayoutParams(0, keyHeight(), 1f).apply { setMargins(dp(gap()), dp(2), dp(gap()), dp(2)) })
+        keyboardRoot = root
+
+        val content = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER_HORIZONTAL
+            clipChildren = false
+            clipToPadding = false
+            layoutParams = LinearLayout.LayoutParams(
+                actualWidth,
+                ViewGroup.LayoutParams.MATCH_PARENT
+            )
+        }
+
+        root.addView(content)
+
+        buildToolbar(content, normalKey, foreground, accent)
+
+        when {
+            clipboardMode -> buildClipboard(content, normalKey, foreground)
+            emojiMode -> buildEmojiPage(content, normalKey, foreground)
+            symbolMode -> buildSymbolPage(content, normalKey, foreground)
+            numberMode -> buildNumberPad(content, normalKey, foreground)
+            else -> {
+                buildSuggestions(content, normalKey, foreground)
+                buildLetterKeyboard(content, normalKey, foreground)
             }
-            if (index == 2) line.addView(actionButton("⌫", 0xFFD6C7E8.toInt(), fg) { currentInputConnection?.deleteSurroundingText(1, 0) })
-            root.addView(line)
         }
 
-        val bottom = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
-        bottom.addView(actionButton("?123", keyBg, fg) { numberMode = true; setInputView(buildKeyboard()) })
-        bottom.addView(actionButton(",", keyBg, fg) { commit(",") })
-        bottom.addView(keyButton("🌐", keyBg, fg) { english = !english; setInputView(buildKeyboard()) })
-        bottom.addView(keyButton("فاصله", keyBg, fg) { commit(" ") }, LinearLayout.LayoutParams(0, keyHeight(), 3f).apply { setMargins(dp(2), dp(2), dp(2), dp(2)) })
-        bottom.addView(actionButton(".", keyBg, fg) { commit(".") })
-        bottom.addView(actionButton("↵", 0xFF6750A4.toInt(), Color.WHITE) { currentInputConnection?.sendKeyEvent(android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_ENTER)) })
-        root.addView(bottom)
         return root
     }
 
-    private fun buildNumberPad(root: LinearLayout, keyBg: Int, fg: Int) {
-        val rows = listOf(listOf("۷","۸","۹"), listOf("۴","۵","۶"), listOf("۱","۲","۳"), listOf("۰","۰۰","⌫"))
-        rows.forEach { row ->
-            val line = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
-            row.forEach { s ->
-                line.addView(keyButton(s, keyBg, fg, 24f) {
-                    when (s) {
-                        "⌫" -> currentInputConnection?.deleteSurroundingText(1, 0)
-                        else -> commit(if (english) toEnglishDigits(s) else s)
-                    }
-                }, LinearLayout.LayoutParams(0, keyHeight().coerceAtLeast(dp(58)), 1f).apply { setMargins(dp(3), dp(3), dp(3), dp(3)) })
+    private fun buildToolbar(
+        root: LinearLayout,
+        keyBg: Int,
+        fg: Int,
+        accent: Int
+    ) {
+        val bar = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+
+        bar.addView(
+            label("KeyFarsi", 13f, fg).apply {
+                setTypeface(null, Typeface.BOLD)
+            },
+            LinearLayout.LayoutParams(0, dp(34), 1f)
+        )
+
+        bar.addView(
+            actionButton("۱۲۳", keyBg, fg) {
+                numberMode = !numberMode
+                symbolMode = false
+                emojiMode = false
+                clipboardMode = false
+                refreshKeyboard()
             }
+        )
+
+        bar.addView(
+            actionButton("=\\<", keyBg, fg) {
+                numberMode = false
+                symbolMode = !symbolMode
+                emojiMode = false
+                clipboardMode = false
+                refreshKeyboard()
+            }
+        )
+
+        bar.addView(
+            actionButton("😊", keyBg, fg) {
+                emojiMode = !emojiMode
+                numberMode = false
+                symbolMode = false
+                clipboardMode = false
+                refreshKeyboard()
+            }
+        )
+
+        bar.addView(
+            actionButton("📋", keyBg, fg) {
+                clipboardMode = !clipboardMode
+                numberMode = false
+                symbolMode = false
+                emojiMode = false
+                refreshKeyboard()
+            }
+        )
+
+        bar.addView(
+            actionButton(if (english) "فا" else "EN", accent, Color.WHITE) {
+                english = !english
+                uppercase = false
+                refreshKeyboard()
+            }
+        )
+
+        root.addView(bar)
+    }
+
+    private fun buildSuggestions(
+        root: LinearLayout,
+        keyBg: Int,
+        fg: Int
+    ) {
+        val row = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER
+            minimumHeight = dp(38)
+        }
+
+        suggestionRow = row
+        root.addView(row)
+
+        refreshSuggestions(keyBg, fg)
+    }
+
+    private fun refreshSuggestions(
+        keyBg: Int? = null,
+        fg: Int? = null
+    ) {
+        val row = suggestionRow ?: return
+        row.removeAllViews()
+
+        val dark = prefs.getBoolean("dark", false)
+        val buttonBg = keyBg ?: if (dark) {
+            Color.rgb(57, 55, 66)
+        } else Color.WHITE
+
+        val textColor = fg ?: if (dark) Color.WHITE else Color.rgb(38, 34, 47)
+
+        val currentWord = getCurrentWord()
+
+        val suggestions = if (currentWord.isBlank()) {
+            listOf(" ", " ", " ")
+        } else {
+            findSuggestions(currentWord).take(3).let {
+                if (it.isEmpty()) listOf(currentWord, " ", " ")
+                else it
+            }
+        }
+
+        suggestions.forEach { word ->
+            val button = TextView(this).apply {
+                text = word
+                textSize = 14f
+                setTextColor(textColor)
+                gravity = Gravity.CENTER
+                maxLines = 1
+                setPadding(dp(5), dp(3), dp(5), dp(3))
+                setOnClickListener {
+                    if (word.isNotBlank()) replaceCurrentWord(word)
+                }
+            }
+
+            row.addView(
+                button,
+                LinearLayout.LayoutParams(0, dp(34), 1f).apply {
+                    setMargins(dp(2), dp(1), dp(2), dp(1))
+                }
+            )
+        }
+    }
+
+    private fun buildLetterKeyboard(
+        root: LinearLayout,
+        keyBg: Int,
+        fg: Int
+    ) {
+        val rows = if (english) {
+            listOf(
+                "qwertyuiop",
+                "asdfghjkl",
+                "zxcvbnm"
+            )
+        } else {
+            listOf(
+                "ضصثقفغعهخحجچ",
+                "شسیبلاتنمکگژ",
+                "ظطزرذدپو"
+            )
+        }
+
+        rows.forEachIndexed { index, row ->
+            val line = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER
+                clipChildren = false
+                clipToPadding = false
+            }
+
+            if (index == 2) {
+                line.addView(
+                    actionButton("⇧", keyBg, fg) {
+                        uppercase = !uppercase
+                        refreshKeyboard()
+                    }
+                )
+            }
+
+            row.forEach { character ->
+                val value = if (english && uppercase) {
+                    character.uppercaseChar().toString()
+                } else {
+                    character.toString()
+                }
+
+                line.addView(
+                    keyButton(value, keyBg, fg) {
+                        commit(value)
+                    },
+                    keyLayoutParams(row.length)
+                )
+            }
+
+            if (index == 2) {
+                line.addView(
+                    actionButton("⌫", Color.rgb(190, 155, 215), Color.WHITE) {
+                        currentInputConnection?.deleteSurroundingText(1, 0)
+                        refreshSuggestions()
+                    }
+                )
+            }
+
+            addKeyboardRow(root, line)
+        }
+
+        buildBottomRow(root, keyBg, fg)
+    }
+
+    private fun buildBottomRow(
+        root: LinearLayout,
+        keyBg: Int,
+        fg: Int
+    ) {
+        val bottom = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER
+        }
+
+        bottom.addView(
+            actionButton("?123", keyBg, fg) {
+                numberMode = true
+                refreshKeyboard()
+            }
+        )
+
+        bottom.addView(
+            actionButton(",", keyBg, fg) {
+                commit(",")
+            }
+        )
+
+        bottom.addView(
+            actionButton("🌐", keyBg, fg) {
+                english = !english
+                refreshKeyboard()
+            }
+        )
+
+        bottom.addView(
+            keyButton("فاصله", keyBg, fg) {
+                commit(" ")
+            },
+            LinearLayout.LayoutParams(0, keyHeight(), 3f).apply {
+                setMargins(dp(gap()), dp(2), dp(gap()), dp(2))
+            }
+        )
+
+        bottom.addView(
+            actionButton(".", keyBg, fg) {
+                commit(".")
+            }
+        )
+
+        bottom.addView(
+            actionButton("↵", Color.rgb(103, 80, 164), Color.WHITE) {
+                sendEnter()
+            }
+        )
+
+        root.addView(bottom)
+    }
+
+    private fun buildNumberPad(
+        root: LinearLayout,
+        keyBg: Int,
+        fg: Int
+    ) {
+        val rows = listOf(
+            listOf("۷", "۸", "۹"),
+            listOf("۴", "۵", "۶"),
+            listOf("۱", "۲", "۳"),
+            listOf("۰", "۰۰", "⌫")
+        )
+
+        rows.forEach { row ->
+            val line = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER
+            }
+
+            row.forEach { value ->
+                line.addView(
+                    keyButton(value, keyBg, fg, 23f) {
+                        when (value) {
+                            "⌫" -> {
+                                currentInputConnection?.deleteSurroundingText(1, 0)
+                                refreshSuggestions()
+                            }
+                            else -> commit(
+                                if (english) toEnglishDigits(value) else value
+                            )
+                        }
+                    },
+                    LinearLayout.LayoutParams(0, keyHeight(), 1f).apply {
+                        setMargins(dp(gap()), dp(2), dp(gap()), dp(2))
+                    }
+                )
+            }
+
             root.addView(line)
         }
-        val controls = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        controls.addView(actionButton(if (english) "فارسی" else "English", keyBg, fg) { english = !english; setInputView(buildKeyboard()) })
-        controls.addView(actionButton("−", keyBg, fg) { commit("-") })
-        controls.addView(actionButton(".", keyBg, fg) { commit(".") })
-        controls.addView(actionButton("↵", 0xFF6750A4.toInt(), Color.WHITE) { currentInputConnection?.performEditorAction(android.view.inputmethod.EditorInfo.IME_ACTION_DONE) })
+
+        val controls = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER
+        }
+
+        controls.addView(
+            actionButton("حروف", keyBg, fg) {
+                numberMode = false
+                refreshKeyboard()
+            }
+        )
+
+        controls.addView(
+            actionButton("نمادها", keyBg, fg) {
+                numberMode = false
+                symbolMode = true
+                refreshKeyboard()
+            }
+        )
+
+        controls.addView(
+            actionButton("+", keyBg, fg) { commit("+") }
+        )
+
+        controls.addView(
+            actionButton("−", keyBg, fg) { commit("-") }
+        )
+
+        controls.addView(
+            actionButton("×", keyBg, fg) { commit("×") }
+        )
+
+        controls.addView(
+            actionButton("÷", keyBg, fg) { commit("÷") }
+        )
+
+        controls.addView(
+            actionButton(".", keyBg, fg) { commit(".") }
+        )
+
+        controls.addView(
+            actionButton("↵", Color.rgb(103, 80, 164), Color.WHITE) {
+                sendEnter()
+            }
+        )
+
         root.addView(controls)
     }
 
-    private fun buildClipboard(root: LinearLayout, keyBg: Int, fg: Int) {
+    private fun buildSymbolPage(
+        root: LinearLayout,
+        keyBg: Int,
+        fg: Int
+    ) {
+        val pageIndex = prefs.getInt("symbol_page", 0).coerceIn(0, 2)
+        val symbols = symbolPages[pageIndex]
+
+        symbols.chunked(8).forEach { row ->
+            val line = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER
+            }
+
+            row.forEach { symbol ->
+                line.addView(
+                    keyButton(symbol, keyBg, fg, 18f) {
+                        commit(symbol)
+                    },
+                    LinearLayout.LayoutParams(0, keyHeight(), 1f).apply {
+                        setMargins(dp(2), dp(2), dp(2), dp(2))
+                    }
+                )
+            }
+
+            root.addView(line)
+        }
+
+        val controls = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER
+        }
+
+        controls.addView(
+            actionButton("۱", keyBg, fg) {
+                prefs.edit().putInt("symbol_page", 0).apply()
+                refreshKeyboard()
+            }
+        )
+
+        controls.addView(
+            actionButton("۲", keyBg, fg) {
+                prefs.edit().putInt("symbol_page", 1).apply()
+                refreshKeyboard()
+            }
+        )
+
+        controls.addView(
+            actionButton("۳", keyBg, fg) {
+                prefs.edit().putInt("symbol_page", 2).apply()
+                refreshKeyboard()
+            }
+        )
+
+        controls.addView(
+            actionButton("اعداد", keyBg, fg) {
+                symbolMode = false
+                numberMode = true
+                refreshKeyboard()
+            }
+        )
+
+        controls.addView(
+            actionButton("حروف", Color.rgb(103, 80, 164), Color.WHITE) {
+                symbolMode = false
+                refreshKeyboard()
+            }
+        )
+
+        root.addView(controls)
+    }
+
+    private fun buildEmojiPage(
+        root: LinearLayout,
+        keyBg: Int,
+        fg: Int
+    ) {
+        val categories = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER
+        }
+
+        emojiCategories.forEachIndexed { index, category ->
+            categories.addView(
+                actionButton(category.first, keyBg, fg) {
+                    emojiCategory = index
+                    refreshKeyboard()
+                }
+            )
+        }
+
+        val categoryScroll = HorizontalScrollView(this).apply {
+            isHorizontalScrollBarEnabled = false
+            addView(categories)
+        }
+
+        root.addView(categoryScroll)
+
+        val emojis = emojiCategories[emojiCategory].second
+
+        emojis.chunked(8).forEach { row ->
+            val line = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER
+            }
+
+            row.forEach { emoji ->
+                line.addView(
+                    keyButton(emoji, keyBg, fg, 22f) {
+                        commit(emoji)
+                    },
+                    LinearLayout.LayoutParams(0, keyHeight(), 1f).apply {
+                        setMargins(dp(2), dp(2), dp(2), dp(2))
+                    }
+                )
+            }
+
+            root.addView(line)
+        }
+
+        root.addView(
+            actionButton("بازگشت به حروف", Color.rgb(103, 80, 164), Color.WHITE) {
+                emojiMode = false
+                refreshKeyboard()
+            }
+        )
+    }
+
+    private fun buildClipboard(
+        root: LinearLayout,
+        keyBg: Int,
+        fg: Int
+    ) {
         val list = loadClipboard()
+
         val scroller = ScrollView(this)
-        val column = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        if (list.length() == 0) column.addView(label("هنوز متنی ذخیره نشده است", 15f, fg))
+
+        val column = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+        }
+
+        if (list.length() == 0) {
+            column.addView(
+                label("هنوز متنی ذخیره نشده است", 15f, fg)
+            )
+        }
+
         for (i in list.length() - 1 downTo 0) {
             val item = list.optJSONObject(i) ?: continue
             val text = item.optString("text")
             val pinned = item.optBoolean("pinned")
-            val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
-            row.addView(keyButton((if (pinned) "📌 " else "") + text.take(45), keyBg, fg, 13f) { commit(text) },
-                LinearLayout.LayoutParams(0, dp(52), 1f))
-            row.addView(actionButton(if (pinned) "📌" else "☆", keyBg, fg) { item.put("pinned", !pinned); saveClipboard(list); setInputView(buildKeyboard()) })
-            row.addView(actionButton("×", keyBg, fg) {
-                if (!pinned) { list.remove(i); saveClipboard(list); setInputView(buildKeyboard()) }
-                else Toast.makeText(this, "ابتدا پین را بردارید", Toast.LENGTH_SHORT).show()
-            })
+
+            val row = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+            }
+
+            row.addView(
+                keyButton(
+                    (if (pinned) "📌 " else "") + text.take(45),
+                    keyBg,
+                    fg,
+                    13f
+                ) {
+                    commit(text)
+                },
+                LinearLayout.LayoutParams(0, dp(52), 1f)
+            )
+
+            row.addView(
+                actionButton(if (pinned) "📌" else "☆", keyBg, fg) {
+                    item.put("pinned", !pinned)
+                    saveClipboard(list)
+                    refreshKeyboard()
+                }
+            )
+
+            row.addView(
+                actionButton("×", keyBg, fg) {
+                    if (!pinned) {
+                        list.remove(i)
+                        saveClipboard(list)
+                        refreshKeyboard()
+                    } else {
+                        Toast.makeText(
+                            this,
+                            "ابتدا پین را بردارید",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                }
+            )
+
             column.addView(row)
         }
+
         scroller.addView(column)
-        root.addView(scroller, LinearLayout.LayoutParams(-1, 0, 1f))
-        val actions = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        actions.addView(actionButton("ذخیره متن فعلی", keyBg, fg) { saveClipboardCurrent(); setInputView(buildKeyboard()) })
-        actions.addView(actionButton("بازگشت", 0xFF6750A4.toInt(), Color.WHITE) { clipboardMode = false; setInputView(buildKeyboard()) })
+
+        root.addView(
+            scroller,
+            LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                0,
+                1f
+            )
+        )
+
+        val actions = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+        }
+
+        actions.addView(
+            actionButton("ذخیره متن فعلی", keyBg, fg) {
+                saveClipboardCurrent()
+                refreshKeyboard()
+            }
+        )
+
+        actions.addView(
+            actionButton("بازگشت", Color.rgb(103, 80, 164), Color.WHITE) {
+                clipboardMode = false
+                refreshKeyboard()
+            }
+        )
+
         root.addView(actions)
     }
+
+    private fun addKeyboardRow(
+        root: LinearLayout,
+        line: LinearLayout
+    ) {
+        val scroll = HorizontalScrollView(this).apply {
+            isHorizontalScrollBarEnabled = false
+            clipChildren = false
+            clipToPadding = false
+            addView(
+                line,
+                ViewGroup.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT
+                )
+            )
+        }
+
+        root.addView(
+            scroll,
+            LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            )
+        )
+    }
+
+    private fun keyLayoutParams(rowLength: Int): LinearLayout.LayoutParams {
+        val configuredWidth = prefs.getInt("key_width", 0)
+
+        return if (configuredWidth > 0) {
+            LinearLayout.LayoutParams(
+                dp(configuredWidth),
+                keyHeight()
+            ).apply {
+                setMargins(dp(gap()), dp(2), dp(gap()), dp(2))
+            }
+        } else {
+            LinearLayout.LayoutParams(
+                0,
+                keyHeight(),
+                1f
+            ).apply {
+                setMargins(dp(gap()), dp(2), dp(gap()), dp(2))
+            }
+        }
+    }
+
+    private fun keyHeight(): Int {
+        val configured = prefs.getInt("key_height", 48)
+        return dp(if (configured <= 0) 48 else configured)
+    }
+
+    private fun gap(): Int {
+        return prefs.getInt("key_gap", 4).coerceAtLeast(0)
+    }
+
+    private fun dp(value: Int): Int {
+        return (value * resources.displayMetrics.density).toInt()
+    }
+
+    private fun label(
+        text: String,
+        size: Float,
+        color: Int
+    ) = TextView(this).apply {
+        this.text = text
+        textSize = size
+        setTextColor(color)
+        gravity = Gravity.CENTER_VERTICAL
+    }
+
+    private fun keyButton(
+        text: String,
+        bg: Int,
+        fg: Int,
+        size: Float = 18f,
+        click: () -> Unit
+    ): TextView {
+        return TextView(this).apply {
+            this.text = text
+            textSize = size
+            setTextColor(fg)
+            gravity = Gravity.CENTER
+            typeface = Typeface.DEFAULT
+            maxLines = 1
+            setPadding(dp(2), dp(2), dp(2), dp(5))
+
+            background = createKeyBackground(bg)
+
+            elevation = dp(4).toFloat()
+
+            setOnTouchListener { view, event ->
+                when (event.action) {
+                    android.view.MotionEvent.ACTION_DOWN -> {
+                        view.translationY = dp(3).toFloat()
+                        view.elevation = dp(1).toFloat()
+                    }
+
+                    android.view.MotionEvent.ACTION_UP,
+                    android.view.MotionEvent.ACTION_CANCEL -> {
+                        view.translationY = 0f
+                        view.elevation = dp(4).toFloat()
+                    }
+                }
+                false
+            }
+
+            setOnClickListener {
+                click()
+            }
+        }
+    }
+
+    private fun actionButton(
+        text: String,
+        bg: Int,
+        fg: Int,
+        click: () -> Unit
+    ): TextView {
+        return keyButton(text, bg, fg, 14f, click).apply {
+            minimumWidth = dp(40)
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                keyHeight()
+            ).apply {
+                setMargins(dp(2), dp(2), dp(2), dp(2))
+            }
+        }
+    }
+
+    private fun createKeyBackground(color: Int): GradientDrawable {
+        val dark = prefs.getBoolean("dark", false)
+
+        val topColor = if (dark) {
+            lighten(color, 18)
+        } else {
+            lighten(color, 8)
+        }
+
+        val bottomColor = if (dark) {
+            darken(color, 18)
+        } else {
+            darken(color, 12)
+        }
+
+        return GradientDrawable(
+            GradientDrawable.Orientation.TOP_BOTTOM,
+            intArrayOf(topColor, bottomColor)
+        ).apply {
+            cornerRadius = dp(9).toFloat()
+            setStroke(dp(1), if (dark) 0xFF55515F.toInt() else 0xFFE0DCE7.toInt())
+        }
+    }
+
+    private fun lighten(color: Int, amount: Int): Int {
+        val r = min(255, Color.red(color) + amount)
+        val g = min(255, Color.green(color) + amount)
+        val b = min(255, Color.blue(color) + amount)
+        return Color.rgb(r, g, b)
+    }
+
+    private fun darken(color: Int, amount: Int): Int {
+        val r = max(0, Color.red(color) - amount)
+        val g = max(0, Color.green(color) - amount)
+        val b = max(0, Color.blue(color) - amount)
+        return Color.rgb(r, g, b)
+    }
+
+    private fun refreshKeyboard() {
+        suggestionRow = null
+        setInputView(buildKeyboard())
+    }
+
+    private fun commit(value: String) {
+        if (value == " " || value == "\n" || value in listOf(".", ",", "!", "؟", "؛")) {
+            learnPreviousWord()
+        }
+
+        currentInputConnection?.commitText(value, 1)
+
+        if (value == " ") {
+            uppercase = false
+        }
+
+        refreshSuggestions()
+    }
+
+    private fun sendEnter() {
+        val info = currentInputEditorInfo
+        val action = info?.imeOptions?.and(EditorInfo.IME_MASK_ACTION)
+            ?: EditorInfo.IME_ACTION_NONE
+
+        val handled = currentInputConnection?.performEditorAction(action) ?: false
+
+        if (!handled) {
+            currentInputConnection?.sendKeyEvent(
+                KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_ENTER)
+            )
+            currentInputConnection?.sendKeyEvent(
+                KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_ENTER)
+            )
+        }
+    }
+
+    private fun getCurrentWord(): String {
+        return try {
+            val before = currentInputConnection
+                ?.getTextBeforeCursor(100, 0)
+                ?.toString()
+                .orEmpty()
+
+            Regex("[\\p{L}\\p{M}]+$")
+                .find(before)
+                ?.value
+                .orEmpty()
+        } catch (_: Exception) {
+            ""
+        }
+    }
+
+    private fun replaceCurrentWord(newWord: String) {
+        val oldWord = getCurrentWord()
+
+        if (oldWord.isNotEmpty()) {
+            currentInputConnection?.deleteSurroundingText(oldWord.length, 0)
+        }
+
+        currentInputConnection?.commitText(newWord, 1)
+        refreshSuggestions()
+    }
+
+    private fun findSuggestions(word: String): List<String> {
+        if (word.isBlank()) return emptyList()
+
+        val normalized = word.lowercase()
+
+        val learned = loadLearnedWords()
+
+        val learnedMatches = learned.keys
+            .filter {
+                it.lowercase().startsWith(normalized) &&
+                    it.lowercase() != normalized
+            }
+            .sortedByDescending {
+                learned.optInt(it, 0)
+            }
+
+        val common = commonWords.filter {
+            it.startsWith(normalized) && it != normalized
+        }
+
+        return (learnedMatches + common)
+            .distinct()
+            .take(3)
+    }
+
+    private fun learnPreviousWord() {
+        if (isSensitiveInput()) return
+
+        val word = getCurrentWord().trim()
+
+        if (word.length < 2 || word.length > 40) return
+
+        if (word.any { it.isDigit() }) return
+
+        val words = loadLearnedWords()
+        val currentCount = words.optInt(word, 0)
+
+        words.put(word, (currentCount + 1).coerceAtMost(1000))
+
+        prefs.edit()
+            .putString("learned_words", words.toString())
+            .apply()
+    }
+
+    private fun loadLearnedWords(): JSONObject {
+        return try {
+            JSONObject(prefs.getString("learned_words", "{}") ?: "{}")
+        } catch (_: Exception) {
+            JSONObject()
+        }
+    }
+
+    private fun isSensitiveInput(): Boolean {
+        val type = currentInputEditorInfo?.inputType ?: return false
+
+        val variation = type and InputType.TYPE_MASK_VARIATION
+
+        return variation == InputType.TYPE_TEXT_VARIATION_PASSWORD ||
+            variation == InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD ||
+            variation == InputType.TYPE_TEXT_VARIATION_WEB_PASSWORD ||
+            variation == InputType.TYPE_NUMBER_VARIATION_PASSWORD
+    }
+
+    private val commonWords = listOf(
+        "سلام","سلامتی","سلامت","خوب","خوبی","خوبه",
+        "ممنون","مرسی","بله","خیر","نه","آره","باشه",
+        "حتما","لطفا","خواهش","خواهشاً","دوست","دوستان",
+        "دوستت","دارم","ندارم","هستم","هستیم","هستند",
+        "امروز","فردا","دیروز","الان","بعدا","بعداً",
+        "خونه","خانه","کار","کارت","زندگی","خانواده",
+        "میشه","می‌شود","میتونم","می‌توانم","میخوام",
+        "می‌خواهم","میکنم","می‌کنم","باید","نباید",
+        "چرا","چطور","چگونه","کجا","کی","چی","چه",
+        "برای","از","به","با","در","این","اون","آن",
+        "همه","هیچ","خیلی","زیاد","کم","بیشتر",
+        "فارسی","انگلیسی","کیبورد","گوشی","موبایل",
+        "برنامه","پیام","متن","کلمه","حروف",
+        "the","this","that","there","their","hello",
+        "thanks","thank","you","your","good","great",
+        "what","when","where","how","please","have",
+        "with","from","will","would","could","should"
+    )
 
     private fun saveClipboardCurrent() {
         try {
             val clip = clipboard.primaryClip ?: return
             if (clip.itemCount == 0) return
-            val value = clip.getItemAt(0).coerceToText(this)?.toString()?.trim().orEmpty()
+
+            val value = clip.getItemAt(0)
+                .coerceToText(this)
+                ?.toString()
+                ?.trim()
+                .orEmpty()
+
             if (value.isBlank()) return
+
             val list = loadClipboard()
-            if ((0 until list.length()).any { list.optJSONObject(it)?.optString("text") == value }) return
-            list.put(JSONObject().put("text", value).put("pinned", false))
+
+            if ((0 until list.length()).any {
+                    list.optJSONObject(it)?.optString("text") == value
+                }) return
+
+            list.put(
+                JSONObject()
+                    .put("text", value)
+                    .put("pinned", false)
+            )
+
             while (list.length() > 100) {
-                var remove = -1
-                for (i in 0 until list.length()) if (!list.optJSONObject(i).optBoolean("pinned")) { remove = i; break }
-                if (remove < 0) break
-                list.remove(remove)
+                var removeIndex = -1
+
+                for (i in 0 until list.length()) {
+                    if (!list.optJSONObject(i).optBoolean("pinned")) {
+                        removeIndex = i
+                        break
+                    }
+                }
+
+                if (removeIndex < 0) break
+                list.remove(removeIndex)
             }
+
             saveClipboard(list)
-        } catch (_: Exception) { }
-    }
-
-    private fun loadClipboard(): JSONArray = try { JSONArray(prefs.getString("clipboard", "[]")) } catch (_: Exception) { JSONArray() }
-    private fun saveClipboard(a: JSONArray) { prefs.edit().putString("clipboard", a.toString()).apply() }
-
-    private fun commit(s: String) { currentInputConnection?.commitText(s, 1) }
-    private fun keyHeight(): Int {
-        val configured = prefs.getInt("key_height", 48)
-        return dp(if (configured <= 0) 48 else configured.coerceIn(28, 120))
-    }
-    private fun gap() = prefs.getInt("key_gap", 4).coerceIn(0, 16)
-    private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
-
-    private fun label(text: String, size: Float, color: Int) = TextView(this).apply {
-        this.text = text; textSize = size; setTextColor(color); gravity = Gravity.CENTER_VERTICAL
-    }
-    private fun keyButton(text: String, bg: Int, fg: Int, size: Float = 18f, click: () -> Unit) =
-        TextView(this).apply {
-            this.text = text; textSize = size; setTextColor(fg); gravity = Gravity.CENTER
-            setBackgroundColor(bg); setOnClickListener { click() }
-            setPadding(dp(2), dp(2), dp(2), dp(2))
+        } catch (_: Exception) {
         }
-    private fun actionButton(text: String, bg: Int, fg: Int, click: () -> Unit) =
-        keyButton(text, bg, fg, 14f, click).apply {
-            val lp = LinearLayout.LayoutParams(-2, keyHeight()).apply { setMargins(dp(2), dp(2), dp(2), dp(2)) }
-            layoutParams = lp
-            minimumWidth = dp(42)
+    }
+
+    private fun loadClipboard(): JSONArray {
+        return try {
+            JSONArray(prefs.getString("clipboard", "[]"))
+        } catch (_: Exception) {
+            JSONArray()
         }
-    private fun toEnglishDigits(s: String) = s.map { c -> when (c) {
-        '۰' -> '0'; '۱' -> '1'; '۲' -> '2'; '۳' -> '3'; '۴' -> '4'
-        '۵' -> '5'; '۶' -> '6'; '۷' -> '7'; '۸' -> '8'; '۹' -> '9'; else -> c
-    } }.joinToString("")
+    }
+
+    private fun saveClipboard(array: JSONArray) {
+        prefs.edit()
+            .putString("clipboard", array.toString())
+            .apply()
+    }
+
+    private fun toEnglishDigits(value: String): String {
+        return value.map { char ->
+            when (char) {
+                '۰' -> '0'
+                '۱' -> '1'
+                '۲' -> '2'
+                '۳' -> '3'
+                '۴' -> '4'
+                '۵' -> '5'
+                '۶' -> '6'
+                '۷' -> '7'
+                '۸' -> '8'
+                '۹' -> '9'
+                else -> char
+            }
+        }.joinToString("")
+    }
 }
