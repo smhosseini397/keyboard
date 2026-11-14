@@ -1,9 +1,51 @@
 <resources>
+
+    <!-- ✅ تم اصلی برنامه (SettingsActivity) -->
     <style name="AppTheme" parent="@android:style/Theme.Material.Light.NoActionBar">
         <item name="android:fontFamily">sans</item>
         <item name="android:colorAccent">#6750A4</item>
+
+        <!-- رنگ‌های نوار وضعیت و ناوبری (روی اندروید < ۱۵ کار می‌کند) -->
         <item name="android:navigationBarColor">#F5F2FA</item>
         <item name="android:statusBarColor">#F5F2FA</item>
+
+        <!-- آیکون‌های تیره روی پس‌زمینه روشن -->
         <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar">true</item>
+
+        <!-- ✅ برای targetSdk 35: مدیریت دستی insets (در کد انجام می‌شود) -->
+        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
+
+        <!-- ✅ حالت پنجره برای تنظیمات -->
+        <item name="android:windowSoftInputMode">adjustResize</item>
     </style>
+
+    <!-- ✅ تم تیره (اختیاری، برای آینده) -->
+    <style name="AppTheme.Dark" parent="@android:style/Theme.Material.NoActionBar">
+        <item name="android:fontFamily">sans</item>
+        <item name="android:colorAccent">#D0BCFF</item>
+
+        <item name="android:navigationBarColor">#1D1D23</item>
+        <item name="android:statusBarColor">#1D1D23</item>
+
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+    </style>
+
+    <!-- ✅ استایل مخصوص سرویس IME (کیبورد) -->
+    <style name="KeyFarsiImeTheme" parent="@android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:fontFamily">sans</item>
+        <item name="android:colorAccent">#6750A4</item>
+
+        <!-- کیبورد نباید پس‌زمینه پنجره داشته باشد (خودش رنگ می‌دهد) -->
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowIsFloating">false</item>
+        <item name="android:windowFullscreen">false</item>
+
+        <!-- انیمیشن ورود/خروج کیبورد -->
+        <item name="android:windowEnterAnimation">@null</item>
+        <item name="android:windowExitAnimation">@null</item>
+    </style>
+
 </resources>
