@@ -608,6 +608,7 @@ class KeyFarsiIme : InputMethodService() {
         root.addView(actions)
     }
 
+    // ✅ بدون fillViewport (این ویژگی فقط در ScrollView وجود دارد، نه HorizontalScrollView)
     private fun addKeyboardRow(root: LinearLayout, line: LinearLayout) {
         val configuredWidth = prefs.getInt("key_width", 0)
         if (configuredWidth <= 0) {
@@ -619,7 +620,6 @@ class KeyFarsiIme : InputMethodService() {
             val scroll = HorizontalScrollView(this).apply {
                 isHorizontalScrollBarEnabled = false
                 isVerticalScrollBarEnabled = false
-                fillViewport = false
                 addView(line, ViewGroup.LayoutParams(
                     ViewGroup.LayoutParams.WRAP_CONTENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT
