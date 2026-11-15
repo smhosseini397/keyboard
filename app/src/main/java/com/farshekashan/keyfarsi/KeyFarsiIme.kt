@@ -57,7 +57,7 @@ class KeyFarsiIme : InputMethodService() {
         "zxcvbnm"
     )
 
-    // ✅ همه نمادها در یک لیست (برای صفحه نمادها با اسکرول)
+    // ✅ همه نمادها در یک لیست
     private val allSymbols = listOf(
         "؟","،","؛",":","!","…",".",",","'","\"","(",")","[","]","{","}",
         "<",">","/","\\","|","_","-","+","=","*","%","@","#","$","^","~",
@@ -68,81 +68,82 @@ class KeyFarsiIme : InputMethodService() {
         "℃","℉","←","→","↑","↓","↔","↕","⇐","⇒","⇑","⇓"
     )
 
-    // ✅ همه ایموجی‌ها (خلاصه‌شده به ۶ دسته اصلی)
-   private val emojiCategories = listOf(
-    "😀" to listOf(
-        "😀","😃","😄","😁","😆","😅","😂","🤣",
-        "😊","😇","🙂","🙃","😉","😌","😍","🥰",
-        "😘","😗","😙","😚","😋","😛","😜","🤪",
-        "😎","🤓","🧐","🤔","🤗","🤭","🤫","🤥",
-        "😐","😑","😶","🙄","😏","😣","😥","😮",
-        "🤐","😯","😪","😫","🥱","😴","😷","🤒",
-        "🤕","🤢","🤮","🤧","🥵","🥶","🥴","😵",
-        "🤯","🤠","🥳","🥸","😈","👿","💀","👻"
-    ),
-    "❤️" to listOf(
-        "❤️","🧡","💛","💚","💙","💜","🖤","🤍",
-        "🤎","💔","❣️","💕","💞","💓","💗","💖",
-        "💘","💝","💟","♥️","💌","💋","💍","💎"
-    ),
-    "👋" to listOf(
-        "👋","🤚","🖐️","✋","🖖","👌","🤌","🤏",
-        "✌️","🤞","🫰","🤟","🤘","🤙","👈","👉",
-        "👆","🖕","👇","☝️","👍","👎","✊","👊",
-        "🤛","🤜","👏","🙌","👐","🤲","🤝","🙏",
-        "✍️","💅","💪","🦾","🦿","🦵","🦶","👂",
-        "👃","🧠","🫀","🫁","🦷","🦴","👀","👁️"
-    ),
-    "🐱" to listOf(
-        "🐶","🐱","🐭","🐹","🐰","🦊","🐻","🐼",
-        "🐻‍❄️","🐨","🐯","🦁","🐮","🐷","🐸","🐵",
-        "🐔","🐧","🐦","🐤","🦆","🦅","🦉","🦇",
-        "🐺","🐗","🐴","🦄","🐝","🪱","🐛","🦋",
-        "🐌","🐞","🐜","🪰","🕷️","🦂","🐢","🐍",
-        "🦎","🦖","🦕","🐙","🦑","🦐","🦀","🐠"
-    ),
-    "🍎" to listOf(
-        "🍎","🍏","🍊","🍋","🍌","🍉","🍇","🍓",
-        "🫐","🍈","🍒","🍑","🥭","🍍","🥥","🥝",
-        "🍅","🍆","🥑","🥦","🥬","🥒","🌶️","🫑",
-        "🌽","🥕","🧄","🧅","🥔","🍠","🥐","🥯",
-        "🍞","🥖","🥨","🧀","🥚","🍳","🧈","🥞",
-        "🧇","🥓","🥩","🍗","🍖","🌭","🍔","🍟"
-    ),
-    "⚽" to listOf(
-        "⚽","🏀","🏈","⚾","🥎","🎾","🏐","🏉",
-        "🥏","🎱","🪀","🏓","🏸","🏒","🏑","🥍",
-        "🏏","🪃","🥅","⛳","🪁","🏹","🎣","🤿",
-        "🥊","🥋","🎽","🛹","🛼","🛷","⛸️","🥌",
-        "🎿","⛷️","🏂","🏋️","🤼","🤸","⛹️","🤺"
-    ),
-    "🚗" to listOf(
-        "🚗","🚕","🚙","🚌","🚎","🏎️","🚓","🚑",
-        "🚒","🚐","🛻","🚚","🚛","🚜","🛵","🏍️",
-        "🚲","🛴","🚏","🛣️","🛤️","⛽","🚨","🚥",
-        "🚦","🚧","⚓","⛵","🚤","🛳️","✈️","🚀",
-        "🛸","🚁","🚂","🚆","🚇","🚊","🚉","🚄"
-    ),
-    "💡" to listOf(
-        "💡","📱","💻","⌨️","🖥️","🖨️","🖱️","🖲️",
-        "💾","💿","📀","📷","📸","📹","🎥","📞",
-        "☎️","📺","📻","🎙️","🎚️","🎛️","🧭","⏱️",
-        "⏰","⌚","🔋","🪫","🔌","💡","🔦","🕯️",
-        "🧯","🛠️","🔧","🔨","⚙️","🧰","🪛","🔩"
-    ),
-    "🌸" to listOf(
-        "🌸","🌹","🌺","🌻","🌼","🌷","🪻","💐",
-        "🌱","🌿","☘️","🍀","🌵","🌴","🌳","🌲",
-        "🌾","🌞","🌝","🌛","🌜","🌚","🌕","🌙",
-        "⭐","🌟","✨","⚡","🔥","💧","🌊","☀️",
-        "🌈","☁️","⛅","🌤️","🌧️","⛈️","❄️","☃️"
-    ),
-    "🎉" to listOf(
-        "🎉","🎊","🎈","🎁","🎀","🎂","🍰","🧁",
-        "🎄","🎃","🎆","🎇","🧨","✨","🎐","🎏",
-        "🎎","🎍","🎋","🎑","🧧","🎗️","🎟️","🎫",
-        "🏆","🥇","🥈","🥉","🏅","🎖️","🎯","🎮",
-        "🕹️","🎲","♟️","🧩","🪅","🪩","🎨","🖼️"
+    // ✅ ایموجی‌ها: ۱۰ دسته کامل
+    private val emojiCategories = listOf(
+        "😀" to listOf(
+            "😀","😃","😄","😁","😆","😅","😂","🤣",
+            "😊","😇","🙂","🙃","😉","😌","😍","🥰",
+            "😘","😗","😙","😚","😋","😛","😜","🤪",
+            "😎","🤓","🧐","🤔","🤗","🤭","🤫","🤥",
+            "😐","😑","😶","🙄","😏","😣","😥","😮",
+            "🤐","😯","😪","😫","🥱","😴","😷","🤒",
+            "🤕","🤢","🤮","🤧","🥵","🥶","🥴","😵",
+            "🤯","🤠","🥳","🥸","😈","👿","💀","👻"
+        ),
+        "❤️" to listOf(
+            "❤️","🧡","💛","💚","💙","💜","🖤","🤍",
+            "🤎","💔","❣️","💕","💞","💓","💗","💖",
+            "💘","💝","💟","♥️","💌","💋","💍","💎"
+        ),
+        "👋" to listOf(
+            "👋","🤚","🖐️","✋","🖖","👌","🤌","🤏",
+            "✌️","🤞","🫰","🤟","🤘","🤙","👈","👉",
+            "👆","🖕","👇","☝️","👍","👎","✊","👊",
+            "🤛","🤜","👏","🙌","👐","🤲","🤝","🙏",
+            "✍️","💅","💪","🦾","🦿","🦵","🦶","👂",
+            "👃","🧠","🫀","🫁","🦷","🦴","👀","👁️"
+        ),
+        "🐱" to listOf(
+            "🐶","🐱","🐭","🐹","🐰","🦊","🐻","🐼",
+            "🐻‍❄️","🐨","🐯","🦁","🐮","🐷","🐸","🐵",
+            "🐔","🐧","🐦","🐤","🦆","🦅","🦉","🦇",
+            "🐺","🐗","🐴","🦄","🐝","🪱","🐛","🦋",
+            "🐌","🐞","🐜","🪰","🕷️","🦂","🐢","🐍",
+            "🦎","🦖","🦕","🐙","🦑","🦐","🦀","🐠"
+        ),
+        "🍎" to listOf(
+            "🍎","🍏","🍊","🍋","🍌","🍉","🍇","🍓",
+            "🫐","🍈","🍒","🍑","🥭","🍍","🥥","🥝",
+            "🍅","🍆","🥑","🥦","🥬","🥒","🌶️","🫑",
+            "🌽","🥕","🧄","🧅","🥔","🍠","🥐","🥯",
+            "🍞","🥖","🥨","🧀","🥚","🍳","🧈","🥞",
+            "🧇","🥓","🥩","🍗","🍖","🌭","🍔","🍟"
+        ),
+        "⚽" to listOf(
+            "⚽","🏀","🏈","⚾","🥎","🎾","🏐","🏉",
+            "🥏","🎱","🪀","🏓","🏸","🏒","🏑","🥍",
+            "🏏","🪃","🥅","⛳","🪁","🏹","🎣","🤿",
+            "🥊","🥋","🎽","🛹","🛼","🛷","⛸️","🥌",
+            "🎿","⛷️","🏂","🏋️","🤼","🤸","⛹️","🤺"
+        ),
+        "🚗" to listOf(
+            "🚗","🚕","🚙","🚌","🚎","🏎️","🚓","🚑",
+            "🚒","🚐","🛻","🚚","🚛","🚜","🛵","🏍️",
+            "🚲","🛴","🚏","🛣️","🛤️","⛽","🚨","🚥",
+            "🚦","🚧","⚓","⛵","🚤","🛳️","✈️","🚀",
+            "🛸","🚁","🚂","🚆","🚇","🚊","🚉","🚄"
+        ),
+        "💡" to listOf(
+            "💡","📱","💻","⌨️","🖥️","🖨️","🖱️","🖲️",
+            "💾","💿","📀","📷","📸","📹","🎥","📞",
+            "☎️","📺","📻","🎙️","🎚️","🎛️","🧭","⏱️",
+            "⏰","⌚","🔋","🪫","🔌","💡","🔦","🕯️",
+            "🧯","🛠️","🔧","🔨","⚙️","🧰","🪛","🔩"
+        ),
+        "🌸" to listOf(
+            "🌸","🌹","🌺","🌻","🌼","🌷","🪻","💐",
+            "🌱","🌿","☘️","🍀","🌵","🌴","🌳","🌲",
+            "🌾","🌞","🌝","🌛","🌜","🌚","🌕","🌙",
+            "⭐","🌟","✨","⚡","🔥","💧","🌊","☀️",
+            "🌈","☁️","⛅","🌤️","🌧️","⛈️","❄️","☃️"
+        ),
+        "🎉" to listOf(
+            "🎉","🎊","🎈","🎁","🎀","🎂","🍰","🧁",
+            "🎄","🎃","🎆","🎇","🧨","✨","🎐","🎏",
+            "🎎","🎍","🎋","🎑","🧧","🎗️","🎟️","🎫",
+            "🏆","🥇","🥈","🥉","🏅","🎖️","🎯","🎮",
+            "🕹️","🎲","♟️","🧩","🪅","🪩","🎨","🖼️"
+        )
     )
 
     private val clipboardListener =
@@ -162,18 +163,18 @@ class KeyFarsiIme : InputMethodService() {
 
     override fun onCreateInputView(): View = buildKeyboard()
 
-    // ✅ مدیریت insets: کیبورد زیر اکشن‌بار نمی‌رود
     override fun onComputeInsets(outInsets: Insets) {
         super.onComputeInsets(outInsets)
         if (!isInputViewShown) return
         outInsets.contentTopInsets = outInsets.visibleTopInsets
         outInsets.touchableInsets = Insets.TOUCHABLE_INSETS_REGION
-        outInsets.touchableRegion.set(0, 0,
+        outInsets.touchableRegion.set(
+            0, 0,
             resources.displayMetrics.widthPixels,
-            keyboardRoot?.height ?: resources.displayMetrics.heightPixels)
+            keyboardRoot?.height ?: resources.displayMetrics.heightPixels
+        )
     }
 
-    // ✅ هنگام چرخش یا تغییر تم، کیبورد را بازسازی کن
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
         if (isInputViewShown) setInputView(buildKeyboard())
@@ -190,7 +191,6 @@ class KeyFarsiIme : InputMethodService() {
         val requestedHeight = prefs.getInt("keyboard_height", 280)
         val screenWidth = resources.displayMetrics.widthPixels
 
-        // ✅ عرض بدون محدودیت مصنوعی (تا ۲۰۰٪ عرض صفحه)
         val actualWidth = if (requestedWidth > 0)
             dp(requestedWidth).coerceAtMost(screenWidth * 2)
         else ViewGroup.LayoutParams.MATCH_PARENT
@@ -208,7 +208,6 @@ class KeyFarsiIme : InputMethodService() {
         }
         keyboardRoot = root
 
-        // ✅ اعمال insets پایین صفحه (جلوگیری از رفتن زیر اکشن‌بار)
         ViewCompat.setOnApplyWindowInsetsListener(root) { view, insets ->
             val navBottom = insets.getInsets(WindowInsetsCompat.Type.navigationBars()).bottom
             view.setPadding(dp(4), dp(4), dp(4), max(navBottom, dp(4)) + dp(2))
@@ -218,7 +217,10 @@ class KeyFarsiIme : InputMethodService() {
         val content = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_HORIZONTAL
-            layoutParams = LinearLayout.LayoutParams(actualWidth, ViewGroup.LayoutParams.WRAP_CONTENT)
+            layoutParams = LinearLayout.LayoutParams(
+                actualWidth,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            )
         }
         root.addView(content)
 
@@ -259,17 +261,24 @@ class KeyFarsiIme : InputMethodService() {
             toggleMode { clipboardMode = !clipboardMode }
         })
         bar.addView(actionButton(
-            if (english) getString(R.string.toolbar_lang_fa) else getString(R.string.toolbar_lang_en),
+            if (english) getString(R.string.toolbar_lang_fa)
+            else getString(R.string.toolbar_lang_en),
             accent, Color.WHITE
         ) {
-            english = !english; uppercase = false; refreshKeyboard()
+            english = !english
+            uppercase = false
+            refreshKeyboard()
         })
         root.addView(bar)
     }
 
     private inline fun toggleMode(block: () -> Unit) {
-        numberMode = false; symbolMode = false; emojiMode = false; clipboardMode = false
-        block(); refreshKeyboard()
+        numberMode = false
+        symbolMode = false
+        emojiMode = false
+        clipboardMode = false
+        block()
+        refreshKeyboard()
     }
 
     private fun buildSuggestions(root: LinearLayout, keyBg: Int, fg: Int) {
@@ -297,7 +306,6 @@ class KeyFarsiIme : InputMethodService() {
                           }
 
         suggestions.forEach { word ->
-            // ✅ دکمه پیشنهاد کلیک‌پذیر واقعی با background
             val button = TextView(this).apply {
                 text = word
                 textSize = 14f
@@ -328,18 +336,22 @@ class KeyFarsiIme : InputMethodService() {
             }
             if (index == 2) {
                 line.addView(actionButton(getString(R.string.key_shift), keyBg, fg) {
-                    uppercase = !uppercase; refreshKeyboard()
+                    uppercase = !uppercase
+                    refreshKeyboard()
                 })
             }
             row.forEach { character ->
-                val value = if (english && uppercase) character.uppercaseChar().toString()
-                            else character.toString()
+                val value = if (english && uppercase)
+                    character.uppercaseChar().toString()
+                else character.toString()
                 line.addView(keyButton(value, keyBg, fg) { commit(value) },
                     keyLayoutParams(row.length))
             }
             if (index == 2) {
-                line.addView(actionButton(getString(R.string.key_backspace),
-                    Color.rgb(190, 155, 215), Color.WHITE) {
+                line.addView(actionButton(
+                    getString(R.string.key_backspace),
+                    Color.rgb(190, 155, 215), Color.WHITE
+                ) {
                     currentInputConnection?.deleteSurroundingText(1, 0)
                     refreshSuggestions()
                 })
@@ -354,22 +366,31 @@ class KeyFarsiIme : InputMethodService() {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
         }
-        bottom.addView(actionButton("?123", keyBg, fg) { toggleMode { numberMode = true } })
-        bottom.addView(actionButton(getString(R.string.key_comma), keyBg, fg) { commit(",") })
-        bottom.addView(actionButton(getString(R.string.key_globe), keyBg, fg) {
-            english = !english; refreshKeyboard()
+        bottom.addView(actionButton("?123", keyBg, fg) {
+            toggleMode { numberMode = true }
         })
-        bottom.addView(keyButton(getString(R.string.key_space), keyBg, fg) { commit(" ") },
-            LinearLayout.LayoutParams(0, keyHeight(), 3f).apply {
-                setMargins(dp(gap()), dp(2), dp(gap()), dp(2))
-            })
-        bottom.addView(actionButton(getString(R.string.key_dot), keyBg, fg) { commit(".") })
-        bottom.addView(actionButton(getString(R.string.key_enter),
-            Color.rgb(103, 80, 164), Color.WHITE) { sendEnter() })
+        bottom.addView(actionButton(getString(R.string.key_comma), keyBg, fg) {
+            commit(",")
+        })
+        bottom.addView(actionButton(getString(R.string.key_globe), keyBg, fg) {
+            english = !english
+            refreshKeyboard()
+        })
+        bottom.addView(keyButton(getString(R.string.key_space), keyBg, fg) {
+            commit(" ")
+        }, LinearLayout.LayoutParams(0, keyHeight(), 3f).apply {
+            setMargins(dp(gap()), dp(2), dp(gap()), dp(2))
+        })
+        bottom.addView(actionButton(getString(R.string.key_dot), keyBg, fg) {
+            commit(".")
+        })
+        bottom.addView(actionButton(
+            getString(R.string.key_enter),
+            Color.rgb(103, 80, 164), Color.WHITE
+        ) { sendEnter() })
         root.addView(bottom)
     }
 
-    // ✅ صفحه اعداد با همه دکمه‌های ریاضی و نمادها
     private fun buildNumberPad(root: LinearLayout, keyBg: Int, fg: Int) {
         val rows = listOf(
             listOf("۷","۸","۹","⌫"),
@@ -385,7 +406,10 @@ class KeyFarsiIme : InputMethodService() {
             row.forEach { value ->
                 line.addView(keyButton(value, keyBg, fg, 20f) {
                     when (value) {
-                        "⌫" -> { currentInputConnection?.deleteSurroundingText(1, 0); refreshSuggestions() }
+                        "⌫" -> {
+                            currentInputConnection?.deleteSurroundingText(1, 0)
+                            refreshSuggestions()
+                        }
                         else -> commit(if (english) toEnglishDigits(value) else value)
                     }
                 }, LinearLayout.LayoutParams(0, keyHeight(), 1f).apply {
@@ -395,7 +419,6 @@ class KeyFarsiIme : InputMethodService() {
             root.addView(line)
         }
 
-        // ✅ ردیف نمادهای پرکاربرد
         val symbolsRow = listOf("؟","%","@","&","*","(",")","!","+","_","=",".")
         val symLine = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -414,20 +437,26 @@ class KeyFarsiIme : InputMethodService() {
             gravity = Gravity.CENTER
         }
         controls.addView(actionButton(getString(R.string.mode_letters), keyBg, fg) {
-            numberMode = false; refreshKeyboard()
+            numberMode = false
+            refreshKeyboard()
         })
         controls.addView(actionButton(getString(R.string.mode_symbols), keyBg, fg) {
-            symbolMode = true; numberMode = false; refreshKeyboard()
+            symbolMode = true
+            numberMode = false
+            refreshKeyboard()
         })
         controls.addView(actionButton(getString(R.string.mode_emoji), keyBg, fg) {
-            emojiMode = true; numberMode = false; refreshKeyboard()
+            emojiMode = true
+            numberMode = false
+            refreshKeyboard()
         })
-        controls.addView(actionButton(getString(R.string.key_enter),
-            Color.rgb(103, 80, 164), Color.WHITE) { sendEnter() })
+        controls.addView(actionButton(
+            getString(R.string.key_enter),
+            Color.rgb(103, 80, 164), Color.WHITE
+        ) { sendEnter() })
         root.addView(controls)
     }
 
-    // ✅ صفحه نمادها: همه در یک صفحه با اسکرول
     private fun buildSymbolPage(root: LinearLayout, keyBg: Int, fg: Int) {
         val scroller = ScrollView(this)
         val column = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
@@ -446,21 +475,29 @@ class KeyFarsiIme : InputMethodService() {
         }
         scroller.addView(column)
         root.addView(scroller, LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
+            ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f
+        ))
 
         val controls = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
         }
         controls.addView(actionButton(getString(R.string.mode_numbers), keyBg, fg) {
-            symbolMode = false; numberMode = true; refreshKeyboard()
+            symbolMode = false
+            numberMode = true
+            refreshKeyboard()
         })
         controls.addView(actionButton(getString(R.string.mode_emoji), keyBg, fg) {
-            symbolMode = false; emojiMode = true; refreshKeyboard()
+            symbolMode = false
+            emojiMode = true
+            refreshKeyboard()
         })
-        controls.addView(actionButton(getString(R.string.mode_letters),
-            Color.rgb(103, 80, 164), Color.WHITE) {
-            symbolMode = false; refreshKeyboard()
+        controls.addView(actionButton(
+            getString(R.string.mode_letters),
+            Color.rgb(103, 80, 164), Color.WHITE
+        ) {
+            symbolMode = false
+            refreshKeyboard()
         })
         root.addView(controls)
     }
@@ -472,7 +509,8 @@ class KeyFarsiIme : InputMethodService() {
         }
         emojiCategories.forEachIndexed { index, category ->
             categories.addView(actionButton(category.first, keyBg, fg) {
-                emojiCategory = index; refreshKeyboard()
+                emojiCategory = index
+                refreshKeyboard()
             })
         }
         val categoryScroll = HorizontalScrollView(this).apply {
@@ -495,9 +533,12 @@ class KeyFarsiIme : InputMethodService() {
             }
             root.addView(line)
         }
-        root.addView(actionButton(getString(R.string.mode_back_to_letters),
-            Color.rgb(103, 80, 164), Color.WHITE) {
-            emojiMode = false; refreshKeyboard()
+        root.addView(actionButton(
+            getString(R.string.mode_back_to_letters),
+            Color.rgb(103, 80, 164), Color.WHITE
+        ) {
+            emojiMode = false
+            refreshKeyboard()
         })
     }
 
@@ -517,44 +558,63 @@ class KeyFarsiIme : InputMethodService() {
                 gravity = Gravity.CENTER_VERTICAL
             }
             row.addView(keyButton(
-                (if (pinned) getString(R.string.clipboard_pinned_prefix) else "") + text.take(45),
+                (if (pinned) getString(R.string.clipboard_pinned_prefix) else "") +
+                    text.take(45),
                 keyBg, fg, 13f
             ) { commit(text) }, LinearLayout.LayoutParams(0, dp(52), 1f))
             row.addView(actionButton(
-                if (pinned) getString(R.string.clipboard_pin) else getString(R.string.clipboard_unpin),
+                if (pinned) getString(R.string.clipboard_pin)
+                else getString(R.string.clipboard_unpin),
                 keyBg, fg
             ) {
-                item.put("pinned", !pinned); saveClipboard(list); refreshKeyboard()
+                item.put("pinned", !pinned)
+                saveClipboard(list)
+                refreshKeyboard()
             })
             row.addView(actionButton(getString(R.string.clipboard_delete), keyBg, fg) {
-                if (!pinned) { list.remove(i); saveClipboard(list); refreshKeyboard() }
-                else Toast.makeText(this, getString(R.string.clipboard_pin_first),
-                    Toast.LENGTH_SHORT).show()
+                if (!pinned) {
+                    list.remove(i)
+                    saveClipboard(list)
+                    refreshKeyboard()
+                } else {
+                    Toast.makeText(
+                        this,
+                        getString(R.string.clipboard_pin_first),
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
             })
             column.addView(row)
         }
         scroller.addView(column)
         root.addView(scroller, LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
+            ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f
+        ))
 
         val actions = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        actions.addView(actionButton(getString(R.string.clipboard_save_current), keyBg, fg) {
-            saveClipboardCurrent(); refreshKeyboard()
+        actions.addView(actionButton(
+            getString(R.string.clipboard_save_current), keyBg, fg
+        ) {
+            saveClipboardCurrent()
+            refreshKeyboard()
         })
-        actions.addView(actionButton(getString(R.string.mode_back),
-            Color.rgb(103, 80, 164), Color.WHITE) {
-            clipboardMode = false; refreshKeyboard()
+        actions.addView(actionButton(
+            getString(R.string.mode_back),
+            Color.rgb(103, 80, 164), Color.WHITE
+        ) {
+            clipboardMode = false
+            refreshKeyboard()
         })
         root.addView(actions)
     }
 
-    // ✅ addKeyboardRow بدون خطای سینتکس
     private fun addKeyboardRow(root: LinearLayout, line: LinearLayout) {
         val configuredWidth = prefs.getInt("key_width", 0)
         if (configuredWidth <= 0) {
             root.addView(line, LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT))
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            ))
         } else {
             val scroll = HorizontalScrollView(this).apply {
                 isHorizontalScrollBarEnabled = false
@@ -562,11 +622,13 @@ class KeyFarsiIme : InputMethodService() {
                 fillViewport = false
                 addView(line, ViewGroup.LayoutParams(
                     ViewGroup.LayoutParams.WRAP_CONTENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT))
+                    ViewGroup.LayoutParams.WRAP_CONTENT
+                ))
             }
             root.addView(scroll, LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT))
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            ))
         }
     }
 
@@ -590,16 +652,21 @@ class KeyFarsiIme : InputMethodService() {
 
     private fun gap(): Int = prefs.getInt("key_gap", 4).coerceAtLeast(0)
 
-    private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
+    private fun dp(value: Int): Int =
+        (value * resources.displayMetrics.density).toInt()
 
     private fun label(text: String, size: Float, color: Int) = TextView(this).apply {
-        this.text = text; textSize = size; setTextColor(color)
+        this.text = text
+        textSize = size
+        setTextColor(color)
         gravity = Gravity.CENTER_VERTICAL
     }
 
-    // ✅ دکمه سه‌بعدی با LayerDrawable (سایه واقعی + گرادیانت)
     private fun keyButton(
-        text: String, bg: Int, fg: Int, size: Float = 18f,
+        text: String,
+        bg: Int,
+        fg: Int,
+        size: Float = 18f,
         click: () -> Unit
     ): TextView {
         return TextView(this).apply {
@@ -618,16 +685,19 @@ class KeyFarsiIme : InputMethodService() {
             setOnTouchListener { view, event ->
                 when (event.action) {
                     MotionEvent.ACTION_DOWN -> {
-                        view.animate().translationY(dp(2).toFloat()).setDuration(40).start()
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP)
+                        view.animate().translationY(dp(2).toFloat())
+                            .setDuration(40).start()
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
                             view.elevation = dp(1).toFloat()
+                        }
                     }
                     MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                         view.animate().translationY(0f).setDuration(60).start()
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP)
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
                             view.animate().setDuration(60).withEndAction {
                                 view.elevation = dp(3).toFloat()
                             }.start()
+                        }
                     }
                 }
                 false
@@ -636,18 +706,23 @@ class KeyFarsiIme : InputMethodService() {
         }
     }
 
-    private fun actionButton(text: String, bg: Int, fg: Int, click: () -> Unit): TextView {
+    private fun actionButton(
+        text: String,
+        bg: Int,
+        fg: Int,
+        click: () -> Unit
+    ): TextView {
         return keyButton(text, bg, fg, 14f, click).apply {
             minimumWidth = dp(40)
             layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT, keyHeight()
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                keyHeight()
             ).apply {
                 setMargins(dp(2), dp(2), dp(2), dp(2))
             }
         }
     }
 
-    // ✅ پس‌زمینه سه‌بعدی: گرادیانت + لایه سایه پایین
     private fun createKeyBackground(color: Int): LayerDrawable {
         val dark = prefs.getBoolean("dark", false)
         val topColor = if (dark) lighten(color, 18) else lighten(color, 8)
@@ -658,7 +733,10 @@ class KeyFarsiIme : InputMethodService() {
             intArrayOf(topColor, bottomColor)
         ).apply {
             cornerRadius = dp(9).toFloat()
-            setStroke(dp(1), if (dark) 0xFF55515F.toInt() else 0xFFE0DCE7.toInt())
+            setStroke(
+                dp(1),
+                if (dark) 0xFF55515F.toInt() else 0xFFE0DCE7.toInt()
+            )
         }
 
         val shadow = GradientDrawable(
@@ -682,14 +760,16 @@ class KeyFarsiIme : InputMethodService() {
         val b = max(0, Color.blue(color) - amount)
         return Color.rgb(r, g, b)
     }
-        private fun refreshKeyboard() {
+
+    private fun refreshKeyboard() {
         suggestionRow = null
         setInputView(buildKeyboard())
     }
 
     private fun commit(value: String) {
         if (value == " " || value == "\n" ||
-            value in listOf(".", ",", "!", "؟", "؛")) {
+            value in listOf(".", ",", "!", "؟", "؛")
+        ) {
             learnPreviousWord()
         }
         currentInputConnection?.commitText(value, 1)
@@ -730,7 +810,6 @@ class KeyFarsiIme : InputMethodService() {
             currentInputConnection?.deleteSurroundingText(oldWord.length, 0)
         }
         currentInputConnection?.commitText(newWord, 1)
-        // ✅ کلمه انتخاب‌شده را هم یاد بگیر
         learnWord(newWord)
         refreshSuggestions()
     }
@@ -755,18 +834,15 @@ class KeyFarsiIme : InputMethodService() {
         return (learnedMatches + common).distinct().take(3)
     }
 
-    // ✅ یادگیری کلمه فعلی هنگام فاصله/نقطه
     private fun learnPreviousWord() {
         learnWord(getCurrentWord().trim())
     }
 
-    // ✅ تابع مرکزی یادگیری کلمه
     private fun learnWord(rawWord: String) {
         if (isSensitiveInput()) return
         val word = rawWord.trim()
         if (word.length < 2 || word.length > 40) return
         if (word.any { it.isDigit() }) return
-        // فقط حروف فارسی یا انگلیسی
         if (word.any { !it.isLetter() && it != '\u200c' }) return
 
         val words = loadLearnedWords()
@@ -829,24 +905,25 @@ class KeyFarsiIme : InputMethodService() {
             val list = loadClipboard()
             if ((0 until list.length()).any {
                     list.optJSONObject(it)?.optString("text") == value
-                }) return
+                }
+            ) return
 
-            list.put(
-                JSONObject().put("text", value).put("pinned", false)
-            )
+            list.put(JSONObject().put("text", value).put("pinned", false))
 
             while (list.length() > 100) {
                 var removeIndex = -1
                 for (i in 0 until list.length()) {
                     if (!list.optJSONObject(i).optBoolean("pinned")) {
-                        removeIndex = i; break
+                        removeIndex = i
+                        break
                     }
                 }
                 if (removeIndex < 0) break
                 list.remove(removeIndex)
             }
             saveClipboard(list)
-        } catch (_: Exception) { }
+        } catch (_: Exception) {
+        }
     }
 
     private fun loadClipboard(): JSONArray {
@@ -864,9 +941,16 @@ class KeyFarsiIme : InputMethodService() {
     private fun toEnglishDigits(value: String): String {
         return value.map { char ->
             when (char) {
-                '۰' -> '0'; '۱' -> '1'; '۲' -> '2'; '۳' -> '3'
-                '۴' -> '4'; '۵' -> '5'; '۶' -> '6'; '۷' -> '7'
-                '۸' -> '8'; '۹' -> '9'
+                '۰' -> '0'
+                '۱' -> '1'
+                '۲' -> '2'
+                '۳' -> '3'
+                '۴' -> '4'
+                '۵' -> '5'
+                '۶' -> '6'
+                '۷' -> '7'
+                '۸' -> '8'
+                '۹' -> '9'
                 else -> char
             }
         }.joinToString("")
