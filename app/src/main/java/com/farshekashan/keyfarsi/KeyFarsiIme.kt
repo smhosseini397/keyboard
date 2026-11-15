@@ -18,8 +18,6 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.inputmethod.EditorInfo
 import android.widget.*
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
 import org.json.JSONArray
 import org.json.JSONObject
 import kotlin.math.max
@@ -163,21 +161,34 @@ class KeyFarsiIme : InputMethodService() {
 
     override fun onCreateInputView(): View = buildKeyboard()
 
+    // ✅ ناحیه لمسی = ارتفاع کیبورد منهای نوار ناوبری
     override fun onComputeInsets(outInsets: Insets) {
         super.onComputeInsets(outInsets)
         if (!isInputViewShown) return
+
+        val navBarHeight = getNavigationBarHeight()
+        val keyboardHeight = keyboardRoot?.height ?: 0
+
         outInsets.contentTopInsets = outInsets.visibleTopInsets
         outInsets.touchableInsets = Insets.TOUCHABLE_INSETS_REGION
         outInsets.touchableRegion.set(
-            0, 0,
+            0,
+            0,
             resources.displayMetrics.widthPixels,
-            keyboardRoot?.height ?: resources.displayMetrics.heightPixels
+            (keyboardHeight - navBarHeight).coerceAtLeast(0)
         )
     }
 
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
         if (isInputViewShown) setInputView(buildKeyboard())
+    }
+
+    // ✅ ارتفاع واقعی نوار ناوبری سیستم
+    private fun getNavigationBarHeight(): Int {
+        val res = resources
+        val id = res.getIdentifier("navigation_bar_height", "dimen", "android")
+        return if (id > 0) res.getDimensionPixelSize(id) else 0
     }
 
     private fun buildKeyboard(): View {
@@ -199,7 +210,9 @@ class KeyFarsiIme : InputMethodService() {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_HORIZONTAL
             setBackgroundColor(background)
-            setPadding(dp(4), dp(4), dp(4), dp(4))
+            // ✅ پدینگ پایین = ارتفاع نوار ناوبری (رفع زیر اکشن‌بار)
+            val navBar = getNavigationBarHeight()
+            setPadding(dp(4), dp(4), dp(4), navBar + dp(4))
             layoutParams = ViewGroup.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 if (requestedHeight > 0) dp(requestedHeight)
@@ -207,12 +220,6 @@ class KeyFarsiIme : InputMethodService() {
             )
         }
         keyboardRoot = root
-
-        ViewCompat.setOnApplyWindowInsetsListener(root) { view, insets ->
-            val navBottom = insets.getInsets(WindowInsetsCompat.Type.navigationBars()).bottom
-            view.setPadding(dp(4), dp(4), dp(4), max(navBottom, dp(4)) + dp(2))
-            insets
-        }
 
         val content = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -326,37 +333,67 @@ class KeyFarsiIme : InputMethodService() {
         }
     }
 
+    // ✅ شکستن ردیف‌های طولانی به چند خط (بدون اسکرول)
     private fun buildLetterKeyboard(root: LinearLayout, keyBg: Int, fg: Int) {
         val rows = if (english) englishRows else persianRows
 
-        rows.forEachIndexed { index, row ->
-            val line = LinearLayout(this).apply {
-                orientation = LinearLayout.HORIZONTAL
-                gravity = Gravity.CENTER
+        val keyWidthDp = prefs.getInt("key_width", 0)
+        val gapDp = prefs.getInt("key_gap", 4).coerceAtLeast(0)
+        val screenWidthDp = (resources.displayMetrics.widthPixels /
+                resources.displayMetrics.density).toInt()
+
+        // حداکثر تعداد کلید در هر خط
+        val maxKeysPerRow: Int = if (keyWidthDp <= 0) {
+            Int.MAX_VALUE
+        } else {
+            val usableWidth = screenWidthDp - 8
+            val perKey = keyWidthDp + (gapDp * 2)
+            (usableWidth / perKey).coerceAtLeast(1)
+        }
+
+        rows.forEachIndexed { rowIndex, row ->
+            val chunks = if (row.length > maxKeysPerRow)
+                row.chunked(maxKeysPerRow)
+            else listOf(row)
+
+            chunks.forEachIndexed { chunkIndex, chunk ->
+                val line = LinearLayout(this).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    gravity = Gravity.CENTER
+                }
+
+                // Shift فقط در اولین خط از آخرین ردیف
+                if (rowIndex == rows.size - 1 && chunkIndex == 0) {
+                    line.addView(actionButton(getString(R.string.key_shift), keyBg, fg) {
+                        uppercase = !uppercase
+                        refreshKeyboard()
+                    })
+                }
+
+                chunk.forEach { character ->
+                    val value = if (english && uppercase)
+                        character.uppercaseChar().toString()
+                    else character.toString()
+                    line.addView(keyButton(value, keyBg, fg) { commit(value) },
+                        keyLayoutParams(chunk.length))
+                }
+
+                // Backspace فقط در آخرین خط از آخرین ردیف
+                if (rowIndex == rows.size - 1 && chunkIndex == chunks.size - 1) {
+                    line.addView(actionButton(
+                        getString(R.string.key_backspace),
+                        Color.rgb(190, 155, 215), Color.WHITE
+                    ) {
+                        currentInputConnection?.deleteSurroundingText(1, 0)
+                        refreshSuggestions()
+                    })
+                }
+
+                root.addView(line, LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT
+                ))
             }
-            if (index == 2) {
-                line.addView(actionButton(getString(R.string.key_shift), keyBg, fg) {
-                    uppercase = !uppercase
-                    refreshKeyboard()
-                })
-            }
-            row.forEach { character ->
-                val value = if (english && uppercase)
-                    character.uppercaseChar().toString()
-                else character.toString()
-                line.addView(keyButton(value, keyBg, fg) { commit(value) },
-                    keyLayoutParams(row.length))
-            }
-            if (index == 2) {
-                line.addView(actionButton(
-                    getString(R.string.key_backspace),
-                    Color.rgb(190, 155, 215), Color.WHITE
-                ) {
-                    currentInputConnection?.deleteSurroundingText(1, 0)
-                    refreshSuggestions()
-                })
-            }
-            addKeyboardRow(root, line)
         }
         buildBottomRow(root, keyBg, fg)
     }
@@ -608,37 +645,23 @@ class KeyFarsiIme : InputMethodService() {
         root.addView(actions)
     }
 
-    // ✅ بدون fillViewport (این ویژگی فقط در ScrollView وجود دارد، نه HorizontalScrollView)
+    // ✅ بدون اسکرول — ردیف مستقیم به root اضافه می‌شه
     private fun addKeyboardRow(root: LinearLayout, line: LinearLayout) {
-        val configuredWidth = prefs.getInt("key_width", 0)
-        if (configuredWidth <= 0) {
-            root.addView(line, LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-            ))
-        } else {
-            val scroll = HorizontalScrollView(this).apply {
-                isHorizontalScrollBarEnabled = false
-                isVerticalScrollBarEnabled = false
-                addView(line, ViewGroup.LayoutParams(
-                    ViewGroup.LayoutParams.WRAP_CONTENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT
-                ))
-            }
-            root.addView(scroll, LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-            ))
-        }
+        root.addView(line, LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT
+        ))
     }
 
     private fun keyLayoutParams(rowLength: Int): LinearLayout.LayoutParams {
         val configuredWidth = prefs.getInt("key_width", 0)
         return if (configuredWidth > 0) {
+            // ✅ عرض ثابت، بدون اسکرول
             LinearLayout.LayoutParams(dp(configuredWidth), keyHeight()).apply {
                 setMargins(dp(gap()), dp(2), dp(gap()), dp(2))
             }
         } else {
+            // ✅ عرض مساوی
             LinearLayout.LayoutParams(0, keyHeight(), 1f).apply {
                 setMargins(dp(gap()), dp(2), dp(gap()), dp(2))
             }
