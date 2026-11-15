@@ -1,39 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-
-    <string name="app_name">KeyFarsi Keyboard</string>
-    <string name="subtype_en">English</string>
-
-    <string name="toolbar_numbers">123</string>
-    <string name="toolbar_lang_fa">FA</string>
-    <string name="toolbar_lang_en">EN</string>
-
-    <string name="key_space">Space</string>
-
-    <string name="clipboard_pinned_section">Pinned</string>
-    <string name="clipboard_recent_section">Last 10 copied</string>
-
-    <string name="mode_letters">Letters</string>
-    <string name="mode_numbers">Numbers</string>
-    <string name="mode_symbols">Symbols</string>
-    <string name="mode_emoji">Emoji</string>
-    <string name="mode_back">Back</string>
-    <string name="mode_back_to_letters">Back to letters</string>
-
-    <string name="clipboard_empty">No text saved yet</string>
-    <string name="clipboard_save_current">Save current text</string>
-    <string name="clipboard_pin_first">Unpin first</string>
-
+    <!-- فقط صفحه تنظیمات -->
     <string name="settings_title">⌨️  KeyFarsi</string>
     <string name="settings_intro">Persian and English keyboard with numpad and clipboard</string>
     <string name="settings_section_size">Size settings</string>
     <string name="settings_section_appearance">Appearance</string>
-
     <string name="settings_enable_keyboard">1. Enable keyboard</string>
     <string name="settings_choose_keyboard">2. Select KeyFarsi</string>
     <string name="settings_save">Save</string>
     <string name="settings_reset">Reset all settings to default</string>
-
     <string name="settings_keyboard_width">Keyboard width (dp)</string>
     <string name="settings_keyboard_height">Keyboard height (dp)</string>
     <string name="settings_key_width">Key width (dp)</string>
@@ -41,15 +16,9 @@
     <string name="settings_key_gap">Key gap (dp)</string>
     <string name="settings_dark_mode">Dark theme</string>
     <string name="settings_hint_any_number">Any number</string>
-
     <string name="settings_toast_saved">Saved</string>
     <string name="settings_toast_invalid">Enter a valid number</string>
     <string name="settings_toast_min">Minimum is %1$d</string>
     <string name="settings_toast_max">Maximum is %1$d</string>
     <string name="settings_toast_reset">Settings reset</string>
-    <string name="settings_range_label">(%1$d to %2$d)</string>
-
-    <string name="format_label_with_range">%1$s  (%2$d to %3$d)</string>
-    <string name="format_clipboard_preview">%1$s%2$s</string>
-
 </resources>
