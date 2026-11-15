@@ -376,39 +376,44 @@ class KeyFarsiIme : InputMethodService() {
         val keyWidthPx = ((usableWidthPx - columns * gapPx * 2) / columns)
             .coerceAtLeast(dp(24))
 
+        // ✅ تغییر ۳ و ۱: Shift از ردیف بالا حذف شد و بک‌اسپیس به ابتدای ردیف آخر منتقل شد
         val allChars = mutableListOf<Any>()
-        allChars.add("SHIFT")
         rows.forEach { row -> row.forEach { ch -> allChars.add(ch) } }
+        // بک‌اسپیس در انتهای همه حروف اضافه می‌شود تا در ردیف آخر و چپ‌چین قرار گیرد
         allChars.add("BACKSPACE")
 
         val chunks = allChars.chunked(columns)
 
-        chunks.forEach { chunk ->
+        chunks.forEachIndexed { rowIndex, chunk ->
             val line = LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL
                 gravity = Gravity.CENTER
             }
 
+            val isLastRow = rowIndex == chunks.lastIndex
             val emptyCount = columns - chunk.size
             val emptyLeft = emptyCount / 2
             val emptyRight = emptyCount - emptyLeft
 
-            repeat(emptyLeft) { line.addView(emptyFixedKey(keyWidthPx)) }
+            // ✅ ردیف آخر: بک‌اسپیس اول از همه (چپ‌چین)
+            if (isLastRow) {
+                line.addView(backspaceKey(
+                    Color.rgb(190, 155, 215), Color.WHITE, keyWidthPx
+                ))
+            } else {
+                repeat(emptyLeft) { line.addView(emptyFixedKey(keyWidthPx)) }
+            }
 
             chunk.forEach { item ->
                 when (item) {
                     is String -> {
-                        if (item == "SHIFT") {
-                            line.addView(fixedKey(getString(R.string.key_shift),
-                                keyBg, fg, keyWidthPx) {
-                                uppercase = !uppercase
-                                refreshKeyboard()
-                            })
-                        } else if (item == "BACKSPACE") {
-                            // ✅ دکمه backspace با عرض ۲ برابر
-                            line.addView(backspaceKey(
-                                Color.rgb(190, 155, 215), Color.WHITE, keyWidthPx * 2
-                            ))
+                        if (item == "BACKSPACE") {
+                            // ✅ فقط در ردیف آخر که چپ‌چین شد، اینجا نادیده گرفته می‌شود
+                            if (!isLastRow) {
+                                line.addView(backspaceKey(
+                                    Color.rgb(190, 155, 215), Color.WHITE, keyWidthPx
+                                ))
+                            }
                         }
                     }
                     is Char -> {
@@ -419,7 +424,11 @@ class KeyFarsiIme : InputMethodService() {
                 }
             }
 
-            repeat(emptyRight) { line.addView(emptyFixedKey(keyWidthPx)) }
+            if (isLastRow) {
+                repeat(emptyRight) { line.addView(emptyFixedKey(keyWidthPx)) }
+            } else {
+                repeat(emptyRight) { line.addView(emptyFixedKey(keyWidthPx)) }
+            }
 
             root.addView(line, LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
@@ -547,6 +556,15 @@ class KeyFarsiIme : InputMethodService() {
             english = !english
             refreshKeyboard()
         })
+        // ✅ تغییر ۳: دکمه Shift به ردیف پایین منتقل شد؛ فقط در حالت انگلیسی نمایش داده می‌شود
+        if (english) {
+            bottom.addView(actionButton(
+                getString(R.string.key_shift), keyBg, fg
+            ) {
+                uppercase = !uppercase
+                refreshKeyboard()
+            })
+        }
         bottom.addView(keyButton(getString(R.string.key_space), keyBg, fg) {
             commit(" ")
         }, LinearLayout.LayoutParams(0, keyHeight(), 3f).apply {
@@ -562,13 +580,13 @@ class KeyFarsiIme : InputMethodService() {
         root.addView(bottom)
     }
 
-    // ✅ صفحه اعداد: چیدمان از ۱۲۳، Backspace هم‌اندازه بقیه، اعداد فارسی/انگلیسی
+    // ✅ صفحه اعداد: حذف 00، جایگزینی & با ×، اعداد لاتین در حالت انگلیسی
     private fun buildNumberPad(root: LinearLayout, keyBg: Int, fg: Int) {
         val rows = listOf(
             listOf("۱", "۲", "۳"),
             listOf("۴", "۵", "۶"),
             listOf("۷", "۸", "۹"),
-            listOf("۰", "۰۰", "⌫")
+            listOf("۰", "⌫")  // ✅ تغییر ۵: حذف 00
         )
         rows.forEach { row ->
             val line = LinearLayout(this).apply {
@@ -577,9 +595,12 @@ class KeyFarsiIme : InputMethodService() {
             }
             row.forEach { value ->
                 if (value == "⌫") {
+                    // ✅ تغییر ۱: بک‌اسپیس چپ‌چین نمی‌شود چون اینجا ردیف اعداد است، اما در جای خود
                     line.addView(backspaceKey(keyBg, fg, (resources.displayMetrics.widthPixels - dp(8)) / 3))
                 } else {
-                    line.addView(keyButton(value, keyBg, fg, 20f) {
+                    // ✅ تغییر ۴: در حالت انگلیسی اعداد لاتین نمایش داده می‌شوند
+                    val display = if (english) toEnglishDigits(value) else value
+                    line.addView(keyButton(display, keyBg, fg, 20f) {
                         commit(if (english) toEnglishDigits(value) else value)
                     }, LinearLayout.LayoutParams(0, keyHeight(), 1f).apply {
                         setMargins(dp(gap()), dp(2), dp(gap()), dp(2))
@@ -589,7 +610,8 @@ class KeyFarsiIme : InputMethodService() {
             root.addView(line)
         }
 
-        val symbolsRow = listOf("؟","%","@","&","*","(",")","!","+","_","=",".")
+        // ✅ تغییر ۶: & با × جایگزین شد
+        val symbolsRow = listOf("؟","%","@","×","*","(",")","!","+","_","=",".")
         val symLine = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
@@ -627,7 +649,6 @@ class KeyFarsiIme : InputMethodService() {
         root.addView(controls)
     }
 
-    // سایر بخش‌ها (symbols, emoji, clipboard و ...) بدون تغییر باقی مانده‌اند
     private fun buildSymbolPage(root: LinearLayout, keyBg: Int, fg: Int) {
         val scroller = ScrollView(this)
         val column = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
@@ -713,50 +734,50 @@ class KeyFarsiIme : InputMethodService() {
         })
     }
 
+    // ✅ تغییر ۲: کلیپ‌بورد با دو بخش جداگانه (پین‌ها و ۱۰ مورد آخر)
     private fun buildClipboard(root: LinearLayout, keyBg: Int, fg: Int) {
         val list = loadClipboard()
         val scroller = ScrollView(this)
         val column = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        if (list.length() == 0) {
-            column.addView(label(getString(R.string.clipboard_empty), 15f, fg))
-        }
+
+        // جدا کردن پین‌ها از غیرپین‌ها
+        val pinnedItems = mutableListOf<Pair<Int, JSONObject>>()
+        val recentItems = mutableListOf<Pair<Int, JSONObject>>()
         for (i in list.length() - 1 downTo 0) {
             val item = list.optJSONObject(i) ?: continue
-            val text = item.optString("text")
-            val pinned = item.optBoolean("pinned")
-            val row = LinearLayout(this).apply {
-                orientation = LinearLayout.HORIZONTAL
-                gravity = Gravity.CENTER_VERTICAL
-            }
-            row.addView(keyButton(
-                (if (pinned) getString(R.string.clipboard_pinned_prefix) else "") +
-                    text.take(45),
-                keyBg, fg, 13f
-            ) { commit(text) }, LinearLayout.LayoutParams(0, dp(52), 1f))
-            row.addView(actionButton(
-                if (pinned) getString(R.string.clipboard_pin)
-                else getString(R.string.clipboard_unpin),
-                keyBg, fg
-            ) {
-                item.put("pinned", !pinned)
-                saveClipboard(list)
-                refreshKeyboard()
-            })
-            row.addView(actionButton(getString(R.string.clipboard_delete), keyBg, fg) {
-                if (!pinned) {
-                    list.remove(i)
-                    saveClipboard(list)
-                    refreshKeyboard()
-                } else {
-                    Toast.makeText(
-                        this,
-                        getString(R.string.clipboard_pin_first),
-                        Toast.LENGTH_SHORT
-                    ).show()
-                }
-            })
-            column.addView(row)
+            if (item.optBoolean("pinned")) pinnedItems.add(i to item)
+            else recentItems.add(i to item)
         }
+
+        // بخش پین‌شده‌ها
+        if (pinnedItems.isNotEmpty()) {
+            column.addView(label("📌 ${getString(R.string.clipboard_pinned_section)}", 13f, fg).apply {
+                setPadding(dp(6), dp(8), dp(6), dp(4))
+                setTypeface(null, Typeface.BOLD)
+            })
+            pinnedItems.forEach { (index, item) ->
+                column.addView(buildClipboardRow(list, index, item, keyBg, fg))
+            }
+        }
+
+        // بخش ۱۰ مورد آخر کپی‌شده
+        val recent = recentItems.take(10)
+        if (recent.isNotEmpty()) {
+            column.addView(label("🕐 ${getString(R.string.clipboard_recent_section)}", 13f, fg).apply {
+                setPadding(dp(6), dp(8), dp(6), dp(4))
+                setTypeface(null, Typeface.BOLD)
+            })
+            recent.forEach { (index, item) ->
+                column.addView(buildClipboardRow(list, index, item, keyBg, fg))
+            }
+        }
+
+        if (pinnedItems.isEmpty() && recent.isEmpty()) {
+            column.addView(label(getString(R.string.clipboard_empty), 15f, fg).apply {
+                setPadding(dp(8), dp(16), dp(8), dp(16))
+            })
+        }
+
         scroller.addView(column)
         root.addView(scroller, LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f
@@ -777,6 +798,43 @@ class KeyFarsiIme : InputMethodService() {
             refreshKeyboard()
         })
         root.addView(actions)
+    }
+
+    // ✅ ساخت یک ردیف کلیپ‌بورد (مشترک بین پین و اخیر)
+    private fun buildClipboardRow(
+        list: JSONArray,
+        index: Int,
+        item: JSONObject,
+        keyBg: Int,
+        fg: Int
+    ): LinearLayout {
+        val text = item.optString("text")
+        val pinned = item.optBoolean("pinned")
+        val row = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+        row.addView(keyButton(
+            (if (pinned) "📌 " else "") + text.take(40),
+            keyBg, fg, 13f
+        ) { commit(text) }, LinearLayout.LayoutParams(0, dp(48), 1f).apply {
+            setMargins(dp(4), dp(2), dp(4), dp(2))
+        })
+        row.addView(actionButton(
+            if (pinned) getString(R.string.clipboard_pin)
+            else getString(R.string.clipboard_unpin),
+            keyBg, fg
+        ) {
+            item.put("pinned", !pinned)
+            saveClipboard(list)
+            refreshKeyboard()
+        })
+        row.addView(actionButton(getString(R.string.clipboard_delete), keyBg, fg) {
+            list.remove(index)
+            saveClipboard(list)
+            refreshKeyboard()
+        })
+        return row
     }
 
     private fun keyHeight(): Int {
@@ -954,7 +1012,6 @@ class KeyFarsiIme : InputMethodService() {
         refreshSuggestions()
     }
 
-    // ✅ دکمه اینتر: برای فیلدهای چندخطی خط جدید، برای بقیه ارسال
     private fun sendEnter() {
         val info = currentInputEditorInfo
         if (info == null) return
@@ -1097,16 +1154,17 @@ class KeyFarsiIme : InputMethodService() {
 
             list.put(JSONObject().put("text", value).put("pinned", false))
 
-            while (list.length() > 100) {
-                var removeIndex = -1
-                for (i in 0 until list.length()) {
-                    if (!list.optJSONObject(i).optBoolean("pinned")) {
-                        removeIndex = i
+            // ✅ تغییر ۲: حداکثر ۱۰ مورد غیرپین نگه داشته می‌شود (پین‌ها جدا)
+            var unpinnedCount = 0
+            for (i in list.length() - 1 downTo 0) {
+                val obj = list.optJSONObject(i) ?: continue
+                if (!obj.optBoolean("pinned")) {
+                    unpinnedCount++
+                    if (unpinnedCount > 10) {
+                        list.remove(i)
                         break
                     }
                 }
-                if (removeIndex < 0) break
-                list.remove(removeIndex)
             }
             saveClipboard(list)
         } catch (_: Exception) {
