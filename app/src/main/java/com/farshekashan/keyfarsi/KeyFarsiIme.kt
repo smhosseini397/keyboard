@@ -48,6 +48,15 @@ class KeyFarsiIme : InputMethodService() {
     }
 
     // ============================================================
+    // ✅ مقادیر پیش‌فرض تنظیمات
+    // ============================================================
+    private val DEFAULT_KEYBOARD_WIDTH = 378
+    private val DEFAULT_KEYBOARD_HEIGHT = 349
+    private val DEFAULT_KEY_WIDTH = 34
+    private val DEFAULT_KEY_HEIGHT = 48
+    private val DEFAULT_KEY_GAP = 5
+
+    // ============================================================
     // ✅ متن‌های ثابت کیبورد — مستقل از زبان سیستم
     // ============================================================
     private fun t(key: String): String {
@@ -85,10 +94,13 @@ class KeyFarsiIme : InputMethodService() {
         }
     }
 
+    // ============================================================
+    // ✅ ردیف‌های حروف — «ژ» مستقل کنار «ز» در ردیف سوم
+    // ============================================================
     private val persianRows = listOf(
         "ضصثقفغعهخحجچ",
         "شسیبلاتنمکگ",
-        "ظطزرذدپو"
+        "ظطزرژذدپو"
     )
 
     private val englishRows = listOf(
@@ -107,7 +119,7 @@ class KeyFarsiIme : InputMethodService() {
         "ت" to listOf("ٹ"),
         "ر" to listOf("ڑ"),
         "د" to listOf("ڈ"),
-        "ز" to listOf("ژ", "ذ"),
+        "ز" to listOf("ذ"),
         "س" to listOf("ص", "ث"),
         "گ" to listOf("ګ"),
         "a" to listOf("à", "á", "â", "ä", "å", "æ", "ā"),
@@ -209,12 +221,9 @@ class KeyFarsiIme : InputMethodService() {
         )
     )
 
-    // ============================================================
-    // ✅ listener کلیپ‌بورد: همیشه ذخیره کن (نه فقط بیرون از صفحه کلیپ‌بورد)
-    // ============================================================
     private val clipboardListener =
         ClipboardManager.OnPrimaryClipChangedListener {
-            if (isInputViewShown) saveClipboardCurrent()
+            saveClipboardCurrent()
         }
 
     override fun onCreate() {
@@ -226,6 +235,16 @@ class KeyFarsiIme : InputMethodService() {
         clipboard.removePrimaryClipChangedListener(clipboardListener)
         stopRepeat()
         super.onDestroy()
+    }
+
+    override fun onStartInput(attribute: EditorInfo?, restarting: Boolean) {
+        super.onStartInput(attribute, restarting)
+        saveClipboardCurrent()
+    }
+
+    override fun onWindowShown() {
+        super.onWindowShown()
+        saveClipboardCurrent()
     }
 
     override fun onCreateInputView(): View = buildKeyboard()
@@ -265,7 +284,9 @@ class KeyFarsiIme : InputMethodService() {
         val foreground = if (dark) Color.WHITE else Color.rgb(38, 34, 47)
         val accent = Color.rgb(103, 80, 164)
 
-        val requestedWidth = prefs.getInt("keyboard_width", 0)
+        // ✅ پیش‌فرض‌های جدید
+        val requestedWidth = prefs.getInt("keyboard_width", DEFAULT_KEYBOARD_WIDTH)
+        val requestedHeight = prefs.getInt("keyboard_height", DEFAULT_KEYBOARD_HEIGHT)
         val screenWidth = resources.displayMetrics.widthPixels
 
         val actualWidth = if (requestedWidth > 0)
@@ -288,6 +309,8 @@ class KeyFarsiIme : InputMethodService() {
         val content = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_HORIZONTAL
+            // ✅ حداقل ارتفاع 349dp
+            minimumHeight = dp(requestedHeight)
             layoutParams = LinearLayout.LayoutParams(
                 actualWidth,
                 ViewGroup.LayoutParams.WRAP_CONTENT
@@ -328,8 +351,13 @@ class KeyFarsiIme : InputMethodService() {
         bar.addView(actionButton(t("toolbar_emoji"), keyBg, fg) {
             toggleMode { emojiMode = !emojiMode }
         })
+        // ✅ دکمه 📋 — مستقیم صفحه کلیپ‌بورد را باز می‌کند
         bar.addView(actionButton(t("toolbar_clipboard"), keyBg, fg) {
-            toggleMode { clipboardMode = !clipboardMode }
+            numberMode = false
+            symbolMode = false
+            emojiMode = false
+            clipboardMode = true
+            refreshKeyboard()
         })
         bar.addView(actionButton(
             if (english) t("toolbar_lang_fa") else t("toolbar_lang_en"),
@@ -396,12 +424,10 @@ class KeyFarsiIme : InputMethodService() {
         }
     }
 
-    // ============================================================
-    // ✅ کیبورد حروف: بک‌اسپیس در ردیف آخر و چپ‌چین
-    // ============================================================
     private fun buildLetterKeyboard(root: LinearLayout, keyBg: Int, fg: Int) {
         val rows = if (english) englishRows else persianRows
-        val configuredKeyWidth = prefs.getInt("key_width", 0)
+        // ✅ پیش‌فرض عرض دکمه 34
+        val configuredKeyWidth = prefs.getInt("key_width", DEFAULT_KEY_WIDTH)
         val gapPx = dp(gap())
 
         val screenWidthPx = resources.displayMetrics.widthPixels
@@ -419,7 +445,6 @@ class KeyFarsiIme : InputMethodService() {
         val keyWidthPx = ((usableWidthPx - columns * gapPx * 2) / columns)
             .coerceAtLeast(dp(24))
 
-        // جمع‌آوری همه حروف
         val allChars = mutableListOf<Any>()
         rows.forEach { row -> row.forEach { ch -> allChars.add(ch) } }
 
@@ -453,9 +478,7 @@ class KeyFarsiIme : InputMethodService() {
             ))
         }
 
-        // ============================================================
-        // ✅ ردیف اختصاصی بک‌اسپیس — همیشه چپ‌چین
-        // ============================================================
+        // ✅ ردیف اختصاصی بک‌اسپیس — چپ‌چین
         val bsRow = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.START
@@ -463,7 +486,6 @@ class KeyFarsiIme : InputMethodService() {
         bsRow.addView(backspaceKey(
             Color.rgb(190, 155, 215), Color.WHITE, keyWidthPx * 2
         ))
-        // فضای خالی باقی‌مانده تا ردیف کامل شود
         bsRow.addView(View(this).apply {
             layoutParams = LinearLayout.LayoutParams(0, keyHeight(), 1f)
         })
@@ -483,20 +505,6 @@ class KeyFarsiIme : InputMethodService() {
         click: () -> Unit
     ): TextView {
         val key = keyButton(text, bg, fg) { click() }
-        key.layoutParams = LinearLayout.LayoutParams(widthPx, keyHeight()).apply {
-            setMargins(dp(gap()), dp(2), dp(gap()), dp(2))
-        }
-        return key
-    }
-
-    private fun fixedKey(
-        text: String,
-        bg: Int,
-        fg: Int,
-        widthPx: Int,
-        click: () -> Unit
-    ): TextView {
-        val key = keyButton(text, bg, fg, 14f) { click() }
         key.layoutParams = LinearLayout.LayoutParams(widthPx, keyHeight()).apply {
             setMargins(dp(gap()), dp(2), dp(gap()), dp(2))
         }
@@ -592,7 +600,6 @@ class KeyFarsiIme : InputMethodService() {
             english = !english
             refreshKeyboard()
         })
-        // ✅ Shift فقط در حالت انگلیسی و در ردیف پایین
         if (english) {
             bottom.addView(actionButton(t("key_shift"), keyBg, fg) {
                 uppercase = !uppercase
@@ -614,15 +621,12 @@ class KeyFarsiIme : InputMethodService() {
         root.addView(bottom)
     }
 
-    // ============================================================
-    // ✅ صفحه اعداد: بک‌اسپیس چپ‌چین، حذف 00، × به جای &
-    // ============================================================
     private fun buildNumberPad(root: LinearLayout, keyBg: Int, fg: Int) {
         val rows = listOf(
             listOf("۱", "۲", "۳"),
             listOf("۴", "۵", "۶"),
             listOf("۷", "۸", "۹"),
-            listOf("⌫", "۰")   // ✅ بک‌اسپیس اول (چپ‌چین)
+            listOf("⌫", "۰")
         )
         rows.forEach { row ->
             val line = LinearLayout(this).apply {
@@ -644,7 +648,6 @@ class KeyFarsiIme : InputMethodService() {
             root.addView(line)
         }
 
-        // ✅ & با × جایگزین شد
         val symbolsRow = listOf("؟","%","@","×","*","(",")","!","+","_","=",".")
         val symLine = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -768,11 +771,10 @@ class KeyFarsiIme : InputMethodService() {
         })
     }
 
-    // ============================================================
-    // ✅ کلیپ‌بورد: دو بخش جداگانه + نمایش همیشگی بخش اخیر
-    // ============================================================
     private fun buildClipboard(root: LinearLayout, keyBg: Int, fg: Int) {
         val list = loadClipboard()
+        android.util.Log.d("KeyFarsi", "buildClipboard: total=${list.length()}")
+
         val scroller = ScrollView(this)
         val column = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
 
@@ -783,8 +785,8 @@ class KeyFarsiIme : InputMethodService() {
             if (item.optBoolean("pinned")) pinnedItems.add(i to item)
             else recentItems.add(i to item)
         }
+        android.util.Log.d("KeyFarsi", "pinned=${pinnedItems.size}, recent=${recentItems.size}")
 
-        // بخش پین‌شده‌ها
         if (pinnedItems.isNotEmpty()) {
             column.addView(label("📌 ${t("clipboard_pinned_section")}", 13f, fg).apply {
                 setPadding(dp(6), dp(8), dp(6), dp(4))
@@ -795,7 +797,6 @@ class KeyFarsiIme : InputMethodService() {
             }
         }
 
-        // بخش ۱۰ مورد آخر — همیشه نمایش داده می‌شود
         column.addView(label("🕐 ${t("clipboard_recent_section")}", 13f, fg).apply {
             setPadding(dp(6), dp(8), dp(6), dp(4))
             setTypeface(null, Typeface.BOLD)
@@ -811,7 +812,6 @@ class KeyFarsiIme : InputMethodService() {
             }
         }
 
-        // اگر هیچ چیزی ذخیره نشده، پیام خالی
         if (pinnedItems.isEmpty() && recentItems.isEmpty()) {
             column.addView(label(t("clipboard_empty"), 15f, fg).apply {
                 setPadding(dp(8), dp(16), dp(8), dp(16))
@@ -873,12 +873,15 @@ class KeyFarsiIme : InputMethodService() {
         return row
     }
 
+    // ============================================================
+    // ✅ مقادیر پیش‌فرض جدید
+    // ============================================================
     private fun keyHeight(): Int {
-        val configured = prefs.getInt("key_height", 48)
-        return dp(if (configured <= 0) 48 else configured)
+        val configured = prefs.getInt("key_height", DEFAULT_KEY_HEIGHT)
+        return dp(if (configured <= 0) DEFAULT_KEY_HEIGHT else configured)
     }
 
-    private fun gap(): Int = prefs.getInt("key_gap", 4).coerceAtLeast(0)
+    private fun gap(): Int = prefs.getInt("key_gap", DEFAULT_KEY_GAP).coerceAtLeast(0)
 
     private fun dp(value: Int): Int =
         (value * resources.displayMetrics.density).toInt()
@@ -1173,24 +1176,37 @@ class KeyFarsiIme : InputMethodService() {
 
     private fun saveClipboardCurrent() {
         try {
-            val clip = clipboard.primaryClip ?: return
-            if (clip.itemCount == 0) return
+            val clip = clipboard.primaryClip ?: run {
+                android.util.Log.d("KeyFarsi", "clipboard: primaryClip is null")
+                return
+            }
+            if (clip.itemCount == 0) {
+                android.util.Log.d("KeyFarsi", "clipboard: itemCount=0")
+                return
+            }
             val value = clip.getItemAt(0)
                 .coerceToText(this)
                 ?.toString()
                 ?.trim()
                 .orEmpty()
-            if (value.isBlank()) return
+            if (value.isBlank()) {
+                android.util.Log.d("KeyFarsi", "clipboard: value is blank")
+                return
+            }
+
+            android.util.Log.d("KeyFarsi", "clipboard: saving '${value.take(30)}'")
 
             val list = loadClipboard()
             if ((0 until list.length()).any {
                     list.optJSONObject(it)?.optString("text") == value
                 }
-            ) return
+            ) {
+                android.util.Log.d("KeyFarsi", "clipboard: already exists")
+                return
+            }
 
             list.put(JSONObject().put("text", value).put("pinned", false))
 
-            // حداکثر ۱۰ مورد غیرپین نگه داشته می‌شود
             var unpinnedCount = 0
             for (i in list.length() - 1 downTo 0) {
                 val obj = list.optJSONObject(i) ?: continue
@@ -1203,7 +1219,9 @@ class KeyFarsiIme : InputMethodService() {
                 }
             }
             saveClipboard(list)
-        } catch (_: Exception) {
+            android.util.Log.d("KeyFarsi", "clipboard: saved, total=${list.length()}")
+        } catch (e: Exception) {
+            android.util.Log.e("KeyFarsi", "clipboard save error", e)
         }
     }
 
