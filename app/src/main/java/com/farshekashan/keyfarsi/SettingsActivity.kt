@@ -22,7 +22,6 @@ class SettingsActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // ✅ Edge-to-Edge در اندروید ۱۵ اجباری است؛ محتوا را از زیر نوارها خارج می‌کنیم
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             window.setDecorFitsSystemWindows(false)
         } else {
@@ -61,7 +60,6 @@ class SettingsActivity : Activity() {
         }
         outer.addView(intro)
 
-        // ✅ دکمه‌های فعال‌سازی با استایل بهتر
         val enable = Button(this).apply {
             text = "۱. فعال‌سازی کیبورد"
             setOnClickListener {
@@ -79,10 +77,8 @@ class SettingsActivity : Activity() {
         }
         outer.addView(choose, match())
 
-        // ✅ بخش تنظیمات با عنوان
         outer.addView(sectionTitle("تنظیمات اندازه"))
 
-        // ✅ فیلدهای عددی با SeekBar + EditText همزمان
         addNumberField(outer, "عرض کیبورد (dp)", "keyboard_width", 360, 0, 1200)
         addNumberField(outer, "ارتفاع کل کیبورد (dp)", "keyboard_height", 270, 150, 800)
         addNumberField(outer, "عرض دکمه‌ها (dp)", "key_width", 0, 0, 200)
@@ -100,7 +96,16 @@ class SettingsActivity : Activity() {
         }
         outer.addView(dark)
 
-        // ✅ دکمه بازنشانی به پیش‌فرض
+        // ✅ کیبورد بزرگ استاندارد
+        val standardBig = CheckBox(this).apply {
+            text = "کیبورد بزرگ استاندارد (حروف سر جای استاندارد با فاصله بیشتر)"
+            isChecked = prefs.getBoolean("standard_big_keyboard", false)
+            setOnCheckedChangeListener { _, checked ->
+                prefs.edit().putBoolean("standard_big_keyboard", checked).apply()
+            }
+        }
+        outer.addView(standardBig)
+
         val reset = Button(this).apply {
             text = "بازنشانی همه تنظیمات به پیش‌فرض"
             setOnClickListener {
@@ -111,6 +116,7 @@ class SettingsActivity : Activity() {
                     .putInt("key_height", 48)
                     .putInt("key_gap", 4)
                     .putBoolean("dark", false)
+                    .putBoolean("standard_big_keyboard", false)
                     .apply()
                 Toast.makeText(this@SettingsActivity, "تنظیمات بازنشانی شد", Toast.LENGTH_SHORT).show()
                 recreate()
@@ -136,7 +142,6 @@ class SettingsActivity : Activity() {
         }
         setContentView(scroller)
 
-        // ✅ اعمال insets به ScrollView (تا محتوا زیر نوار ناوبری نره)
         ViewCompat.setOnApplyWindowInsetsListener(scroller) { view, insets ->
             val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             view.setPadding(bars.left, bars.top, bars.right, bars.bottom)
@@ -160,11 +165,6 @@ class SettingsActivity : Activity() {
         setPadding(0, dp(20), 0, dp(8))
     }
 
-    /**
-     * ✅ فیلد عددی با SeekBar + EditText + دکمه ذخیره یکپارچه
-     * @param minValue حداقل مقدار مجاز
-     * @param maxValue حداکثر مقدار مجاز (نسبت به صفحه بررسی می‌شود)
-     */
     private fun addNumberField(
         parent: LinearLayout,
         label: String,
@@ -199,7 +199,6 @@ class SettingsActivity : Activity() {
         }
         row.addView(seek)
 
-        // ✅ همگام‌سازی EditText و SeekBar
         input.addTextChangedListener(object : android.text.TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
