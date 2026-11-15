@@ -2,7 +2,7 @@
 <resources>
 
     <!-- ✅ اطلاعات برنامه -->
-    <string name="app_name">کلید فارسی</string>
+    <string name="app_name">کیبرد فارسی</string>
     <string name="subtype_fa">فارسی</string>
     <string name="subtype_en">English</string>
 
@@ -24,6 +24,10 @@
     <string name="key_dot">.</string>
     <string name="key_globe">🌐</string>
 
+    <!-- ✅ کلیپ‌بورد: بخش‌ها (فقط یک بار!) -->
+    <string name="clipboard_pinned_section">پین‌شده‌ها</string>
+    <string name="clipboard_recent_section">۱۰ مورد آخر کپی‌شده</string>
+
     <!-- ✅ دکمه‌های ناوبری حالت‌ها -->
     <string name="mode_letters">حروف</string>
     <string name="mode_numbers">اعداد</string>
@@ -41,7 +45,7 @@
     <string name="clipboard_delete">×</string>
     <string name="clipboard_pinned_prefix">📌 </string>
 
-    <!-- ✅ نمادهای صفحه نمادها (اینها نماد هستن، ترجمه نمی‌شن) -->
+    <!-- ✅ نمادهای صفحه نمادها -->
     <string name="symbol_percent">%</string>
     <string name="symbol_at">@</string>
     <string name="symbol_ampersand">&amp;</string>
