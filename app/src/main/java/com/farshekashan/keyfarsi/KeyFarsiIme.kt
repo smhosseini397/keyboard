@@ -47,6 +47,44 @@ class KeyFarsiIme : InputMethodService() {
         getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
     }
 
+    // ============================================================
+    // ✅ متن‌های ثابت کیبورد — مستقل از زبان سیستم
+    // ============================================================
+    private fun t(key: String): String {
+        return when (key) {
+            "key_space" -> "فاصله"
+            "key_shift" -> "⇧"
+            "key_backspace" -> "⌫"
+            "key_enter" -> "↵"
+            "key_comma" -> ","
+            "key_dot" -> "."
+            "key_globe" -> "🌐"
+            "mode_letters" -> "حروف"
+            "mode_numbers" -> "اعداد"
+            "mode_symbols" -> "نمادها"
+            "mode_emoji" -> "ایموجی"
+            "mode_back" -> "بازگشت"
+            "mode_back_to_letters" -> "بازگشت به حروف"
+            "clipboard_empty" -> "هنوز متنی ذخیره نشده است"
+            "clipboard_save_current" -> "ذخیره متن فعلی"
+            "clipboard_pin" -> "📌"
+            "clipboard_unpin" -> "☆"
+            "clipboard_delete" -> "×"
+            "clipboard_pinned_section" -> "پین‌شده‌ها"
+            "clipboard_recent_section" -> "۱۰ مورد آخر کپی‌شده"
+            "clipboard_pin_first" -> "ابتدا پین را بردارید"
+            "clipboard_recent_empty" -> "(خالی)"
+            "toolbar_brand" -> "KeyFarsi"
+            "toolbar_numbers" -> "۱۲۳"
+            "toolbar_symbols" -> "=\\<"
+            "toolbar_emoji" -> "😊"
+            "toolbar_clipboard" -> "📋"
+            "toolbar_lang_fa" -> "فا"
+            "toolbar_lang_en" -> "EN"
+            else -> key
+        }
+    }
+
     private val persianRows = listOf(
         "ضصثقفغعهخحجچ",
         "شسیبلاتنمکگ",
@@ -171,9 +209,12 @@ class KeyFarsiIme : InputMethodService() {
         )
     )
 
+    // ============================================================
+    // ✅ listener کلیپ‌بورد: همیشه ذخیره کن (نه فقط بیرون از صفحه کلیپ‌بورد)
+    // ============================================================
     private val clipboardListener =
         ClipboardManager.OnPrimaryClipChangedListener {
-            if (isInputViewShown && !clipboardMode) saveClipboardCurrent()
+            if (isInputViewShown) saveClipboardCurrent()
         }
 
     override fun onCreate() {
@@ -274,25 +315,24 @@ class KeyFarsiIme : InputMethodService() {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
         }
-        bar.addView(label(getString(R.string.toolbar_brand), 13f, fg).apply {
+        bar.addView(label(t("toolbar_brand"), 13f, fg).apply {
             setTypeface(null, Typeface.BOLD)
         }, LinearLayout.LayoutParams(0, dp(34), 1f))
 
-        bar.addView(actionButton(getString(R.string.toolbar_numbers), keyBg, fg) {
+        bar.addView(actionButton(t("toolbar_numbers"), keyBg, fg) {
             toggleMode { numberMode = !numberMode }
         })
-        bar.addView(actionButton(getString(R.string.toolbar_symbols), keyBg, fg) {
+        bar.addView(actionButton(t("toolbar_symbols"), keyBg, fg) {
             toggleMode { symbolMode = !symbolMode }
         })
-        bar.addView(actionButton(getString(R.string.toolbar_emoji), keyBg, fg) {
+        bar.addView(actionButton(t("toolbar_emoji"), keyBg, fg) {
             toggleMode { emojiMode = !emojiMode }
         })
-        bar.addView(actionButton(getString(R.string.toolbar_clipboard), keyBg, fg) {
+        bar.addView(actionButton(t("toolbar_clipboard"), keyBg, fg) {
             toggleMode { clipboardMode = !clipboardMode }
         })
         bar.addView(actionButton(
-            if (english) getString(R.string.toolbar_lang_fa)
-            else getString(R.string.toolbar_lang_en),
+            if (english) t("toolbar_lang_fa") else t("toolbar_lang_en"),
             accent, Color.WHITE
         ) {
             english = !english
@@ -356,6 +396,9 @@ class KeyFarsiIme : InputMethodService() {
         }
     }
 
+    // ============================================================
+    // ✅ کیبورد حروف: بک‌اسپیس در ردیف آخر و چپ‌چین
+    // ============================================================
     private fun buildLetterKeyboard(root: LinearLayout, keyBg: Int, fg: Int) {
         val rows = if (english) englishRows else persianRows
         val configuredKeyWidth = prefs.getInt("key_width", 0)
@@ -376,49 +419,29 @@ class KeyFarsiIme : InputMethodService() {
         val keyWidthPx = ((usableWidthPx - columns * gapPx * 2) / columns)
             .coerceAtLeast(dp(24))
 
-        // ✅ تغییر ۳ و ۱: Shift از ردیف بالا حذف شد؛ بک‌اسپیس در ردیف آخر و چپ‌چین
+        // جمع‌آوری همه حروف
         val allChars = mutableListOf<Any>()
         rows.forEach { row -> row.forEach { ch -> allChars.add(ch) } }
-        allChars.add("BACKSPACE")
 
         val chunks = allChars.chunked(columns)
 
-        chunks.forEachIndexed { rowIndex, chunk ->
+        chunks.forEach { chunk ->
             val line = LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL
                 gravity = Gravity.CENTER
             }
 
-            val isLastRow = rowIndex == chunks.lastIndex
             val emptyCount = columns - chunk.size
             val emptyLeft = emptyCount / 2
             val emptyRight = emptyCount - emptyLeft
 
-            // ✅ ردیف آخر: بک‌اسپیس اول از همه (چپ‌چین)
-            if (isLastRow) {
-                line.addView(backspaceKey(
-                    Color.rgb(190, 155, 215), Color.WHITE, keyWidthPx
-                ))
-            } else {
-                repeat(emptyLeft) { line.addView(emptyFixedKey(keyWidthPx)) }
-            }
+            repeat(emptyLeft) { line.addView(emptyFixedKey(keyWidthPx)) }
 
             chunk.forEach { item ->
-                when (item) {
-                    is String -> {
-                        if (item == "BACKSPACE") {
-                            if (!isLastRow) {
-                                line.addView(backspaceKey(
-                                    Color.rgb(190, 155, 215), Color.WHITE, keyWidthPx
-                                ))
-                            }
-                        }
-                    }
-                    is Char -> {
-                        val v = if (english && uppercase) item.uppercaseChar().toString()
-                                else item.toString()
-                        line.addView(letterKey(v, keyBg, fg, keyWidthPx) { commit(v) })
-                    }
+                if (item is Char) {
+                    val v = if (english && uppercase) item.uppercaseChar().toString()
+                            else item.toString()
+                    line.addView(letterKey(v, keyBg, fg, keyWidthPx) { commit(v) })
                 }
             }
 
@@ -429,6 +452,25 @@ class KeyFarsiIme : InputMethodService() {
                 ViewGroup.LayoutParams.WRAP_CONTENT
             ))
         }
+
+        // ============================================================
+        // ✅ ردیف اختصاصی بک‌اسپیس — همیشه چپ‌چین
+        // ============================================================
+        val bsRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.START
+        }
+        bsRow.addView(backspaceKey(
+            Color.rgb(190, 155, 215), Color.WHITE, keyWidthPx * 2
+        ))
+        // فضای خالی باقی‌مانده تا ردیف کامل شود
+        bsRow.addView(View(this).apply {
+            layoutParams = LinearLayout.LayoutParams(0, keyHeight(), 1f)
+        })
+        root.addView(bsRow, LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT
+        ))
 
         buildBottomRow(root, keyBg, fg)
     }
@@ -472,7 +514,7 @@ class KeyFarsiIme : InputMethodService() {
 
     private fun backspaceKey(bg: Int, fg: Int, widthPx: Int): TextView {
         val key = TextView(this).apply {
-            text = getString(R.string.key_backspace)
+            text = t("key_backspace")
             textSize = 14f
             setTextColor(fg)
             gravity = Gravity.CENTER
@@ -543,44 +585,44 @@ class KeyFarsiIme : InputMethodService() {
         bottom.addView(actionButton("?123", keyBg, fg) {
             toggleMode { numberMode = true }
         })
-        bottom.addView(actionButton(getString(R.string.key_comma), keyBg, fg) {
+        bottom.addView(actionButton(t("key_comma"), keyBg, fg) {
             commit(",")
         })
-        bottom.addView(actionButton(getString(R.string.key_globe), keyBg, fg) {
+        bottom.addView(actionButton(t("key_globe"), keyBg, fg) {
             english = !english
             refreshKeyboard()
         })
-        // ✅ تغییر ۳: Shift فقط در حالت انگلیسی و در ردیف پایین
+        // ✅ Shift فقط در حالت انگلیسی و در ردیف پایین
         if (english) {
-            bottom.addView(actionButton(
-                getString(R.string.key_shift), keyBg, fg
-            ) {
+            bottom.addView(actionButton(t("key_shift"), keyBg, fg) {
                 uppercase = !uppercase
                 refreshKeyboard()
             })
         }
-        bottom.addView(keyButton(getString(R.string.key_space), keyBg, fg) {
+        bottom.addView(keyButton(t("key_space"), keyBg, fg) {
             commit(" ")
         }, LinearLayout.LayoutParams(0, keyHeight(), 3f).apply {
             setMargins(dp(gap()), dp(2), dp(gap()), dp(2))
         })
-        bottom.addView(actionButton(getString(R.string.key_dot), keyBg, fg) {
+        bottom.addView(actionButton(t("key_dot"), keyBg, fg) {
             commit(".")
         })
         bottom.addView(actionButton(
-            getString(R.string.key_enter),
+            t("key_enter"),
             Color.rgb(103, 80, 164), Color.WHITE
         ) { sendEnter() })
         root.addView(bottom)
     }
 
-    // ✅ صفحه اعداد: حذف 00، جایگزینی & با ×، اعداد لاتین در حالت انگلیسی
+    // ============================================================
+    // ✅ صفحه اعداد: بک‌اسپیس چپ‌چین، حذف 00، × به جای &
+    // ============================================================
     private fun buildNumberPad(root: LinearLayout, keyBg: Int, fg: Int) {
         val rows = listOf(
             listOf("۱", "۲", "۳"),
             listOf("۴", "۵", "۶"),
             listOf("۷", "۸", "۹"),
-            listOf("۰", "⌫")
+            listOf("⌫", "۰")   // ✅ بک‌اسپیس اول (چپ‌چین)
         )
         rows.forEach { row ->
             val line = LinearLayout(this).apply {
@@ -602,7 +644,7 @@ class KeyFarsiIme : InputMethodService() {
             root.addView(line)
         }
 
-        // ✅ تغییر ۶: & با × جایگزین شد
+        // ✅ & با × جایگزین شد
         val symbolsRow = listOf("؟","%","@","×","*","(",")","!","+","_","=",".")
         val symLine = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -620,22 +662,22 @@ class KeyFarsiIme : InputMethodService() {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
         }
-        controls.addView(actionButton(getString(R.string.mode_letters), keyBg, fg) {
+        controls.addView(actionButton(t("mode_letters"), keyBg, fg) {
             numberMode = false
             refreshKeyboard()
         })
-        controls.addView(actionButton(getString(R.string.mode_symbols), keyBg, fg) {
+        controls.addView(actionButton(t("mode_symbols"), keyBg, fg) {
             symbolMode = true
             numberMode = false
             refreshKeyboard()
         })
-        controls.addView(actionButton(getString(R.string.mode_emoji), keyBg, fg) {
+        controls.addView(actionButton(t("mode_emoji"), keyBg, fg) {
             emojiMode = true
             numberMode = false
             refreshKeyboard()
         })
         controls.addView(actionButton(
-            getString(R.string.key_enter),
+            t("key_enter"),
             Color.rgb(103, 80, 164), Color.WHITE
         ) { sendEnter() })
         root.addView(controls)
@@ -666,18 +708,18 @@ class KeyFarsiIme : InputMethodService() {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
         }
-        controls.addView(actionButton(getString(R.string.mode_numbers), keyBg, fg) {
+        controls.addView(actionButton(t("mode_numbers"), keyBg, fg) {
             symbolMode = false
             numberMode = true
             refreshKeyboard()
         })
-        controls.addView(actionButton(getString(R.string.mode_emoji), keyBg, fg) {
+        controls.addView(actionButton(t("mode_emoji"), keyBg, fg) {
             symbolMode = false
             emojiMode = true
             refreshKeyboard()
         })
         controls.addView(actionButton(
-            getString(R.string.mode_letters),
+            t("mode_letters"),
             Color.rgb(103, 80, 164), Color.WHITE
         ) {
             symbolMode = false
@@ -718,7 +760,7 @@ class KeyFarsiIme : InputMethodService() {
             root.addView(line)
         }
         root.addView(actionButton(
-            getString(R.string.mode_back_to_letters),
+            t("mode_back_to_letters"),
             Color.rgb(103, 80, 164), Color.WHITE
         ) {
             emojiMode = false
@@ -726,7 +768,9 @@ class KeyFarsiIme : InputMethodService() {
         })
     }
 
-    // ✅ کلیپ‌بورد با دو بخش جداگانه (پین‌ها و ۱۰ مورد آخر)
+    // ============================================================
+    // ✅ کلیپ‌بورد: دو بخش جداگانه + نمایش همیشگی بخش اخیر
+    // ============================================================
     private fun buildClipboard(root: LinearLayout, keyBg: Int, fg: Int) {
         val list = loadClipboard()
         val scroller = ScrollView(this)
@@ -740,8 +784,9 @@ class KeyFarsiIme : InputMethodService() {
             else recentItems.add(i to item)
         }
 
+        // بخش پین‌شده‌ها
         if (pinnedItems.isNotEmpty()) {
-            column.addView(label("📌 ${getString(R.string.clipboard_pinned_section)}", 13f, fg).apply {
+            column.addView(label("📌 ${t("clipboard_pinned_section")}", 13f, fg).apply {
                 setPadding(dp(6), dp(8), dp(6), dp(4))
                 setTypeface(null, Typeface.BOLD)
             })
@@ -750,19 +795,25 @@ class KeyFarsiIme : InputMethodService() {
             }
         }
 
+        // بخش ۱۰ مورد آخر — همیشه نمایش داده می‌شود
+        column.addView(label("🕐 ${t("clipboard_recent_section")}", 13f, fg).apply {
+            setPadding(dp(6), dp(8), dp(6), dp(4))
+            setTypeface(null, Typeface.BOLD)
+        })
         val recent = recentItems.take(10)
-        if (recent.isNotEmpty()) {
-            column.addView(label("🕐 ${getString(R.string.clipboard_recent_section)}", 13f, fg).apply {
-                setPadding(dp(6), dp(8), dp(6), dp(4))
-                setTypeface(null, Typeface.BOLD)
+        if (recent.isEmpty()) {
+            column.addView(label(t("clipboard_recent_empty"), 12f, fg).apply {
+                setPadding(dp(8), dp(4), dp(8), dp(4))
             })
+        } else {
             recent.forEach { (index, item) ->
                 column.addView(buildClipboardRow(list, index, item, keyBg, fg))
             }
         }
 
-        if (pinnedItems.isEmpty() && recent.isEmpty()) {
-            column.addView(label(getString(R.string.clipboard_empty), 15f, fg).apply {
+        // اگر هیچ چیزی ذخیره نشده، پیام خالی
+        if (pinnedItems.isEmpty() && recentItems.isEmpty()) {
+            column.addView(label(t("clipboard_empty"), 15f, fg).apply {
                 setPadding(dp(8), dp(16), dp(8), dp(16))
             })
         }
@@ -773,14 +824,12 @@ class KeyFarsiIme : InputMethodService() {
         ))
 
         val actions = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        actions.addView(actionButton(
-            getString(R.string.clipboard_save_current), keyBg, fg
-        ) {
+        actions.addView(actionButton(t("clipboard_save_current"), keyBg, fg) {
             saveClipboardCurrent()
             refreshKeyboard()
         })
         actions.addView(actionButton(
-            getString(R.string.mode_back),
+            t("mode_back"),
             Color.rgb(103, 80, 164), Color.WHITE
         ) {
             clipboardMode = false
@@ -809,15 +858,14 @@ class KeyFarsiIme : InputMethodService() {
             setMargins(dp(4), dp(2), dp(4), dp(2))
         })
         row.addView(actionButton(
-            if (pinned) getString(R.string.clipboard_pin)
-            else getString(R.string.clipboard_unpin),
+            if (pinned) t("clipboard_pin") else t("clipboard_unpin"),
             keyBg, fg
         ) {
             item.put("pinned", !pinned)
             saveClipboard(list)
             refreshKeyboard()
         })
-        row.addView(actionButton(getString(R.string.clipboard_delete), keyBg, fg) {
+        row.addView(actionButton(t("clipboard_delete"), keyBg, fg) {
             list.remove(index)
             saveClipboard(list)
             refreshKeyboard()
@@ -1142,7 +1190,7 @@ class KeyFarsiIme : InputMethodService() {
 
             list.put(JSONObject().put("text", value).put("pinned", false))
 
-            // ✅ حداکثر ۱۰ مورد غیرپین نگه داشته می‌شود
+            // حداکثر ۱۰ مورد غیرپین نگه داشته می‌شود
             var unpinnedCount = 0
             for (i in list.length() - 1 downTo 0) {
                 val obj = list.optJSONObject(i) ?: continue
