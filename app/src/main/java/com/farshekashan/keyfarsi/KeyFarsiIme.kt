@@ -47,6 +47,7 @@ class KeyFarsiIme : InputMethodService() {
         getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
     }
 
+    // ✅ فقط ۳۲ حرف پایه فارسی
     private val persianRows = listOf(
         "ضصثقفغعهخحجچ",
         "شسیبلاتنمکگ",
@@ -356,7 +357,7 @@ class KeyFarsiIme : InputMethodService() {
         }
     }
 
-    // ✅ منطق جدید: ردیف‌ها با تعداد ستون ثابت، بدون اسکرول، بدون جمع شدن
+    // ✅ منطق جدید: همه حروف یکجا به خطوط مساوی تقسیم می‌شن
     private fun buildLetterKeyboard(root: LinearLayout, keyBg: Int, fg: Int) {
         val rows = if (english) englishRows else persianRows
         val configuredKeyWidth = prefs.getInt("key_width", 0)
@@ -365,87 +366,64 @@ class KeyFarsiIme : InputMethodService() {
         val screenWidthPx = resources.displayMetrics.widthPixels
         val usableWidthPx = screenWidthPx - dp(8)
 
-        // ✅ تعداد ستون = تعداد دکمه در هر ردیف (ثابت برای همه ردیف‌ها)
+        // ✅ محاسبه تعداد ستون
         val columns: Int
-        val keyWidthPx: Int
-
         if (configuredKeyWidth > 0) {
-            // حالت دستی: key_width تعیین‌کننده
             val manualKeyPx = dp(configuredKeyWidth)
             columns = ((usableWidthPx - gapPx * 2) / (manualKeyPx + gapPx * 2))
                 .coerceIn(2, 12)
-            // عرض دکمه = (عرض صفحه - فاصله‌ها) / columns  → همیشه پر و تراز
-            keyWidthPx = ((usableWidthPx - columns * gapPx * 2) / columns)
-                .coerceAtLeast(dp(24))
         } else {
-            // حالت خودکار: طول بزرگ‌ترین ردیف = تعداد ستون
             columns = rows.maxOf { it.length }
-            keyWidthPx = ((usableWidthPx - columns * gapPx * 2) / columns)
-                .coerceAtLeast(dp(24))
         }
 
-        // ✅ محاسبه ارتفاع ردیف‌ها: اگر تعداد ردیف‌ها زیاد شد، ارتفاع کیبورد زیاد می‌شه
-        val baseKeyHeight = keyHeight()
-        // ارتفاع نهایی هر دکمه = همان keyHeight (کاربر تعیین کرده)
+        // ✅ عرض هر دکمه = عرض صفحه / تعداد ستون (همیشه پر و تراز)
+        val keyWidthPx = ((usableWidthPx - columns * gapPx * 2) / columns)
+            .coerceAtLeast(dp(24))
 
-        // ✅ ساخت همه ردیف‌ها
-        // ابتدا ردیف‌های حروف را به chunk تبدیل می‌کنیم
-        data class RowChunk(val chars: List<Char>, val isLastChunk: Boolean, val isFirstChunk: Boolean, val isLastRow: Boolean)
+        // ✅ همه حروف رو در یک لیست پیوسته بریز
+        val allChars = mutableListOf<Any>()   // Any: یا Char یا String ("SHIFT"/"BACKSPACE")
+        allChars.add("SHIFT")
+        rows.forEach { row -> row.forEach { ch -> allChars.add(ch) } }
+        allChars.add("BACKSPACE")
 
-        val allRowChunks = mutableListOf<RowChunk>()
+        // ✅ تقسیم یکجا به خطوط مساوی (نه هر ردیف جداگانه)
+        val chunks = allChars.chunked(columns)
 
-        rows.forEachIndexed { rowIndex, row ->
-            val chars = row.toList()
-            val isLastRow = rowIndex == rows.size - 1
-
-            // ردیف‌های حروف را به chunk تقسیم کن (همه به جز ردیف آخر یک chunk دارن اگر جا بشن)
-            val chunks = chars.chunked(columns)
-            chunks.forEachIndexed { chunkIndex, chunk ->
-                allRowChunks.add(RowChunk(
-                    chars = chunk,
-                    isLastChunk = chunkIndex == chunks.size - 1,
-                    isFirstChunk = chunkIndex == 0,
-                    isLastRow = isLastRow
-                ))
-            }
-        }
-
-        // ✅ نمایش همه chunk‌ها
-        allRowChunks.forEach { rc ->
+        chunks.forEach { chunk ->
             val line = LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL
                 gravity = Gravity.CENTER
             }
 
-            val hasShift = rc.isLastRow && rc.isFirstChunk
-            val hasBackspace = rc.isLastRow && rc.isLastChunk
-
-            // ✅ محاسبه کلیدهای خالی
-            var extraCount = 0
-            if (hasShift) extraCount++
-            if (hasBackspace) extraCount++
-            val emptyCount = (columns - rc.chars.size - extraCount).coerceAtLeast(0)
-            val emptyLeft = if (hasShift) 0 else emptyCount / 2
+            // ✅ تعداد کلید خالی برای پر کردن خط آخر
+            val emptyCount = columns - chunk.size
+            // کلیدهای خالی: نصف چپ، نصف راست
+            val emptyLeft = emptyCount / 2
             val emptyRight = emptyCount - emptyLeft
 
             repeat(emptyLeft) { line.addView(emptyFixedKey(keyWidthPx)) }
 
-            if (hasShift) {
-                line.addView(fixedKey(getString(R.string.key_shift),
-                    keyBg, fg, keyWidthPx) {
-                    uppercase = !uppercase
-                    refreshKeyboard()
-                })
-            }
-
-            rc.chars.forEach { ch ->
-                val v = if (english && uppercase) ch.uppercaseChar().toString()
-                        else ch.toString()
-                line.addView(letterKey(v, keyBg, fg, keyWidthPx) { commit(v) })
-            }
-
-            if (hasBackspace) {
-                line.addView(backspaceKey(Color.rgb(190, 155, 215), Color.WHITE, keyWidthPx))
+            chunk.forEach { item ->
+                when (item) {
+                    is String -> {
+                        if (item == "SHIFT") {
+                            line.addView(fixedKey(getString(R.string.key_shift),
+                                keyBg, fg, keyWidthPx) {
+                                uppercase = !uppercase
+                                refreshKeyboard()
+                            })
+                        } else if (item == "BACKSPACE") {
+                            line.addView(backspaceKey(
+                                Color.rgb(190, 155, 215), Color.WHITE, keyWidthPx
+                            ))
+                        }
+                    }
+                    is Char -> {
+                        val v = if (english && uppercase) item.uppercaseChar().toString()
+                                else item.toString()
+                        line.addView(letterKey(v, keyBg, fg, keyWidthPx) { commit(v) })
+                    }
+                }
             }
 
             repeat(emptyRight) { line.addView(emptyFixedKey(keyWidthPx)) }
