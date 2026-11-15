@@ -83,7 +83,7 @@ class KeyFarsiIme : InputMethodService() {
             "clipboard_recent_section" -> "۱۰ مورد آخر کپی‌شده"
             "clipboard_pin_first" -> "ابتدا پین را بردارید"
             "clipboard_recent_empty" -> "(خالی)"
-            "toolbar_brand" -> "KeyFarsi"
+            "toolbar_brand" -> "KeyFarsiSMH"
             "toolbar_numbers" -> "۱۲۳"
             "toolbar_symbols" -> "=\\<"
             "toolbar_emoji" -> "😊"
@@ -284,7 +284,6 @@ class KeyFarsiIme : InputMethodService() {
         val foreground = if (dark) Color.WHITE else Color.rgb(38, 34, 47)
         val accent = Color.rgb(103, 80, 164)
 
-        // ✅ پیش‌فرض‌های جدید
         val requestedWidth = prefs.getInt("keyboard_width", DEFAULT_KEYBOARD_WIDTH)
         val requestedHeight = prefs.getInt("keyboard_height", DEFAULT_KEYBOARD_HEIGHT)
         val screenWidth = resources.displayMetrics.widthPixels
@@ -309,7 +308,6 @@ class KeyFarsiIme : InputMethodService() {
         val content = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_HORIZONTAL
-            // ✅ حداقل ارتفاع 349dp
             minimumHeight = dp(requestedHeight)
             layoutParams = LinearLayout.LayoutParams(
                 actualWidth,
@@ -351,7 +349,6 @@ class KeyFarsiIme : InputMethodService() {
         bar.addView(actionButton(t("toolbar_emoji"), keyBg, fg) {
             toggleMode { emojiMode = !emojiMode }
         })
-        // ✅ دکمه 📋 — مستقیم صفحه کلیپ‌بورد را باز می‌کند
         bar.addView(actionButton(t("toolbar_clipboard"), keyBg, fg) {
             numberMode = false
             symbolMode = false
@@ -426,7 +423,6 @@ class KeyFarsiIme : InputMethodService() {
 
     private fun buildLetterKeyboard(root: LinearLayout, keyBg: Int, fg: Int) {
         val rows = if (english) englishRows else persianRows
-        // ✅ پیش‌فرض عرض دکمه 34
         val configuredKeyWidth = prefs.getInt("key_width", DEFAULT_KEY_WIDTH)
         val gapPx = dp(gap())
 
@@ -478,17 +474,17 @@ class KeyFarsiIme : InputMethodService() {
             ))
         }
 
-        // ✅ ردیف اختصاصی بک‌اسپیس — چپ‌چین
+        // ✅ ردیف اختصاصی بک‌اسپیس — سمت راست (Gravity.END)
         val bsRow = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.START
+            gravity = Gravity.END
         }
-        bsRow.addView(backspaceKey(
-            Color.rgb(190, 155, 215), Color.WHITE, keyWidthPx * 2
-        ))
         bsRow.addView(View(this).apply {
             layoutParams = LinearLayout.LayoutParams(0, keyHeight(), 1f)
         })
+        bsRow.addView(backspaceKey(
+            Color.rgb(190, 155, 215), Color.WHITE, keyWidthPx * 2
+        ))
         root.addView(bsRow, LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT,
             ViewGroup.LayoutParams.WRAP_CONTENT
@@ -581,18 +577,15 @@ class KeyFarsiIme : InputMethodService() {
     }
 
     private fun deleteOneChar() {
-    val ic = currentInputConnection ?: return
-    // بررسی وجود متن انتخاب‌شده
-    val selected = ic.getSelectedText(0)
-    if (!selected.isNullOrEmpty()) {
-        // اگر انتخاب وجود دارد، آن را با رشته خالی جایگزین کن (یعنی حذف)
-        ic.commitText("", 1)
-    } else {
-        // اگر انتخابی وجود ندارد، کاراکتر قبل از مکان‌نما را حذف کن
-        ic.deleteSurroundingText(1, 0)
+        val ic = currentInputConnection ?: return
+        val selected = ic.getSelectedText(0)
+        if (!selected.isNullOrEmpty()) {
+            ic.commitText("", 1)
+        } else {
+            ic.deleteSurroundingText(1, 0)
+        }
+        refreshSuggestions()
     }
-    refreshSuggestions()
-}
 
     private fun buildBottomRow(root: LinearLayout, keyBg: Int, fg: Int) {
         val bottom = LinearLayout(this).apply {
@@ -780,32 +773,25 @@ class KeyFarsiIme : InputMethodService() {
         })
     }
 
+    // ============================================================
+    // ✅ کلیپ‌بورد — ۱۰ مورد آخر کپی‌شده اول، پین‌شده‌ها زیرشان (نامحدود)
+    // ============================================================
     private fun buildClipboard(root: LinearLayout, keyBg: Int, fg: Int) {
         val list = loadClipboard()
-        android.util.Log.d("KeyFarsi", "buildClipboard: total=${list.length()}")
 
         val scroller = ScrollView(this)
         val column = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
 
         val pinnedItems = mutableListOf<Pair<Int, JSONObject>>()
         val recentItems = mutableListOf<Pair<Int, JSONObject>>()
+        // جدیدترین‌ها اول (از انتها به ابتدا)
         for (i in list.length() - 1 downTo 0) {
             val item = list.optJSONObject(i) ?: continue
             if (item.optBoolean("pinned")) pinnedItems.add(i to item)
             else recentItems.add(i to item)
         }
-        android.util.Log.d("KeyFarsi", "pinned=${pinnedItems.size}, recent=${recentItems.size}")
 
-        if (pinnedItems.isNotEmpty()) {
-            column.addView(label("📌 ${t("clipboard_pinned_section")}", 13f, fg).apply {
-                setPadding(dp(6), dp(8), dp(6), dp(4))
-                setTypeface(null, Typeface.BOLD)
-            })
-            pinnedItems.forEach { (index, item) ->
-                column.addView(buildClipboardRow(list, index, item, keyBg, fg))
-            }
-        }
-
+        // ✅ اول ۱۰ مورد آخر کپی‌شده
         column.addView(label("🕐 ${t("clipboard_recent_section")}", 13f, fg).apply {
             setPadding(dp(6), dp(8), dp(6), dp(4))
             setTypeface(null, Typeface.BOLD)
@@ -817,6 +803,17 @@ class KeyFarsiIme : InputMethodService() {
             })
         } else {
             recent.forEach { (index, item) ->
+                column.addView(buildClipboardRow(list, index, item, keyBg, fg))
+            }
+        }
+
+        // ✅ بعد پین‌شده‌ها (نامحدود) زیرشان
+        if (pinnedItems.isNotEmpty()) {
+            column.addView(label("📌 ${t("clipboard_pinned_section")}", 13f, fg).apply {
+                setPadding(dp(6), dp(8), dp(6), dp(4))
+                setTypeface(null, Typeface.BOLD)
+            })
+            pinnedItems.forEach { (index, item) ->
                 column.addView(buildClipboardRow(list, index, item, keyBg, fg))
             }
         }
@@ -875,16 +872,19 @@ class KeyFarsiIme : InputMethodService() {
             refreshKeyboard()
         })
         row.addView(actionButton(t("clipboard_delete"), keyBg, fg) {
-            list.remove(index)
+            // ✅ حذف بر اساس متن (اندیس‌ها بعد از پین/حذف جابه‌جا می‌شوند)
+            for (i in list.length() - 1 downTo 0) {
+                if (list.optJSONObject(i)?.optString("text") == text) {
+                    list.remove(i)
+                    break
+                }
+            }
             saveClipboard(list)
             refreshKeyboard()
         })
         return row
     }
 
-    // ============================================================
-    // ✅ مقادیر پیش‌فرض جدید
-    // ============================================================
     private fun keyHeight(): Int {
         val configured = prefs.getInt("key_height", DEFAULT_KEY_HEIGHT)
         return dp(if (configured <= 0) DEFAULT_KEY_HEIGHT else configured)
@@ -1060,28 +1060,34 @@ class KeyFarsiIme : InputMethodService() {
         refreshSuggestions()
     }
 
+    // ============================================================
+    // ✅ اینتر: فقط multiline واقعی newline؛ بقیه performEditorAction
+    // ============================================================
     private fun sendEnter() {
-        val info = currentInputEditorInfo
-        if (info == null) return
+        val info = currentInputEditorInfo ?: return
+        val ic = currentInputConnection ?: return
 
         val inputType = info.inputType and InputType.TYPE_MASK_CLASS
         val isMultiline = (info.inputType and InputType.TYPE_TEXT_FLAG_MULTI_LINE) != 0
 
-        if (isMultiline || inputType == InputType.TYPE_CLASS_TEXT) {
-            currentInputConnection?.commitText("\n", 1)
-        } else {
-            val action = info.imeOptions and EditorInfo.IME_MASK_ACTION
-            if (action != EditorInfo.IME_ACTION_NONE) {
-                currentInputConnection?.performEditorAction(action)
-            } else {
-                currentInputConnection?.sendKeyEvent(
-                    KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_ENTER)
-                )
-                currentInputConnection?.sendKeyEvent(
-                    KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_ENTER)
-                )
-            }
+        // فقط در فیلدهای چندخطی واقعی newline درج کن (پیام‌رسان‌ها)
+        if (isMultiline && inputType == InputType.TYPE_CLASS_TEXT) {
+            ic.commitText("\n", 1)
+            return
         }
+
+        // اولویت: اکشن تعریف‌شده توسط اپ (جستجو، برو، ارسال و ...) — مرورگر
+        val action = info.imeOptions and EditorInfo.IME_MASK_ACTION
+        if (action != EditorInfo.IME_ACTION_NONE &&
+            action != EditorInfo.IME_ACTION_UNSPECIFIED
+        ) {
+            ic.performEditorAction(action)
+            return
+        }
+
+        // fallback: ارسال کلید اینتر واقعی
+        ic.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_ENTER))
+        ic.sendKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_ENTER))
     }
 
     private fun getCurrentWord(): String {
@@ -1183,52 +1189,48 @@ class KeyFarsiIme : InputMethodService() {
         "with","from","will","would","could","should"
     )
 
+    // ============================================================
+    // ✅ کلیپ‌بورد: پین نامحدود + فقط ۱۰ مورد آخر unpinned
+    // ============================================================
     private fun saveClipboardCurrent() {
         try {
-            val clip = clipboard.primaryClip ?: run {
-                android.util.Log.d("KeyFarsi", "clipboard: primaryClip is null")
-                return
-            }
-            if (clip.itemCount == 0) {
-                android.util.Log.d("KeyFarsi", "clipboard: itemCount=0")
-                return
-            }
+            val clip = clipboard.primaryClip ?: return
+            if (clip.itemCount == 0) return
             val value = clip.getItemAt(0)
                 .coerceToText(this)
                 ?.toString()
                 ?.trim()
                 .orEmpty()
-            if (value.isBlank()) {
-                android.util.Log.d("KeyFarsi", "clipboard: value is blank")
-                return
-            }
-
-            android.util.Log.d("KeyFarsi", "clipboard: saving '${value.take(30)}'")
+            if (value.isBlank()) return
 
             val list = loadClipboard()
+
+            // جلوگیری از تکرار
             if ((0 until list.length()).any {
                     list.optJSONObject(it)?.optString("text") == value
                 }
-            ) {
-                android.util.Log.d("KeyFarsi", "clipboard: already exists")
-                return
-            }
+            ) return
 
             list.put(JSONObject().put("text", value).put("pinned", false))
 
-            var unpinnedCount = 0
-            for (i in list.length() - 1 downTo 0) {
+            // حذف قدیمی‌ترین unpinnedها اگر بیش از 10 شد
+            val unpinnedIndexes = mutableListOf<Int>()
+            for (i in 0 until list.length()) {
                 val obj = list.optJSONObject(i) ?: continue
-                if (!obj.optBoolean("pinned")) {
-                    unpinnedCount++
-                    if (unpinnedCount > 10) {
-                        list.remove(i)
-                        break
-                    }
-                }
+                if (!obj.optBoolean("pinned")) unpinnedIndexes.add(i)
             }
-            saveClipboard(list)
-            android.util.Log.d("KeyFarsi", "clipboard: saved, total=${list.length()}")
+            // لیست به ترتیب درج (قدیمی → جدید) است؛ قدیمی‌ترین‌ها از ابتدا حذف شوند
+            val toRemove = unpinnedIndexes.size - 10
+            if (toRemove > 0) {
+                val removeSet = unpinnedIndexes.take(toRemove).toSet()
+                val newArray = JSONArray()
+                for (i in 0 until list.length()) {
+                    if (i !in removeSet) newArray.put(list.optJSONObject(i))
+                }
+                saveClipboard(newArray)
+            } else {
+                saveClipboard(list)
+            }
         } catch (e: Exception) {
             android.util.Log.e("KeyFarsi", "clipboard save error", e)
         }
