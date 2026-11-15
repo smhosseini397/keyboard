@@ -10,6 +10,8 @@ import android.graphics.drawable.InsetDrawable
 import android.graphics.drawable.LayerDrawable
 import android.inputmethodservice.InputMethodService
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.text.InputType
 import android.view.Gravity
 import android.view.KeyEvent
@@ -36,6 +38,9 @@ class KeyFarsiIme : InputMethodService() {
     private var suggestionRow: LinearLayout? = null
     private var keyboardRoot: LinearLayout? = null
 
+    private val handler = Handler(Looper.getMainLooper())
+    private var repeatRunnable: Runnable? = null
+
     private val prefs by lazy { getSharedPreferences("keyfarsi", MODE_PRIVATE) }
 
     private val clipboard by lazy {
@@ -55,7 +60,6 @@ class KeyFarsiIme : InputMethodService() {
         "zxcvbnm"
     )
 
-    // ✅ نگاشت کاراکترهای جایگزین (با نگه داشتن)
     private val alternateChars: Map<String, List<String>> = mapOf(
         "ا" to listOf("آ", "أ", "إ", "ء", "ئ", "ؤ", "ۀ"),
         "ی" to listOf("ي", "ى", "ئ"),
@@ -180,6 +184,7 @@ class KeyFarsiIme : InputMethodService() {
 
     override fun onDestroy() {
         clipboard.removePrimaryClipChangedListener(clipboardListener)
+        stopRepeat()
         super.onDestroy()
     }
 
@@ -224,8 +229,9 @@ class KeyFarsiIme : InputMethodService() {
         val requestedHeight = prefs.getInt("keyboard_height", 280)
         val screenWidth = resources.displayMetrics.widthPixels
 
+        // ✅ عرض کیبورد: اگر تنظیم شده، اعمال می‌شه؛ وگرنه تمام عرض
         val actualWidth = if (requestedWidth > 0)
-            dp(requestedWidth).coerceAtMost(screenWidth * 2)
+            dp(requestedWidth).coerceAtMost(screenWidth)
         else ViewGroup.LayoutParams.MATCH_PARENT
 
         val root = LinearLayout(this).apply {
@@ -236,11 +242,22 @@ class KeyFarsiIme : InputMethodService() {
             setPadding(dp(4), dp(4), dp(4), navBar + dp(4))
             layoutParams = ViewGroup.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            )
+        }
+        keyboardRoot = root
+
+        // ✅ ScrollView عمودی برای وقتی کیبورد از ارتفاع صفحه بلندتر می‌شه
+        val verticalScroller = ScrollView(this).apply {
+            isVerticalScrollBarEnabled = false
+            isHorizontalScrollBarEnabled = false
+            fillViewport = false
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
                 if (requestedHeight > 0) dp(requestedHeight)
                 else ViewGroup.LayoutParams.WRAP_CONTENT
             )
         }
-        keyboardRoot = root
 
         val content = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -250,7 +267,9 @@ class KeyFarsiIme : InputMethodService() {
                 ViewGroup.LayoutParams.WRAP_CONTENT
             )
         }
-        root.addView(content)
+
+        verticalScroller.addView(content)
+        root.addView(verticalScroller)
 
         buildToolbar(content, normalKey, foreground, accent)
 
@@ -354,85 +373,109 @@ class KeyFarsiIme : InputMethodService() {
         }
     }
 
-    // ✅ همه ردیف‌ها تعداد مساوی دکمه دارن — عرض هر دکمه = عرض صفحه / تعداد ستون
+    // ✅ عرض دکمه‌ها از key_width — اگر بزرگ شد، تعداد ستون کمتر می‌شه
     private fun buildLetterKeyboard(root: LinearLayout, keyBg: Int, fg: Int) {
         val rows = if (english) englishRows else persianRows
-
-        // ✅ بزرگ‌ترین ردیف = تعداد ستون کل کیبورد
-        val columns = rows.maxOf { it.length }
-
-        // ✅ عرض قابل استفاده (منهای پدینگ کناری)
-        val usableWidthPx = resources.displayMetrics.widthPixels - dp(8)
-
-        // ✅ عرض هر دکمه = عرض قابل استفاده / تعداد ستون
-        // منهای فاصله‌ها: هر ستون 2dp از چپ و راست فاصله داره
+        val configuredKeyWidth = prefs.getInt("key_width", 0)
         val gapPx = dp(gap())
-        val keyWidthPx = (usableWidthPx - (columns * gapPx * 2)) / columns
-        val finalKeyWidth = keyWidthPx.coerceAtLeast(dp(24))
 
-        // ✅ همه ردیف‌ها رو به تعداد ستون پر می‌کنیم (با حروف یا دکمه‌های کمکی)
+        // ✅ عرض واقعی هر دکمه (px)
+        val keyWidthPx: Int
+        val columns: Int
+
+        if (configuredKeyWidth > 0) {
+            // حالت دستی: عرض ثابت از تنظیمات
+            keyWidthPx = dp(configuredKeyWidth)
+            // محاسبه تعداد ستون بر اساس عرض صفحه
+            val usableWidthPx = resources.displayMetrics.widthPixels - dp(8)
+            columns = ((usableWidthPx - gapPx * 2) / (keyWidthPx + gapPx * 2))
+                .coerceAtLeast(1)
+        } else {
+            // حالت خودکار: بزرگ‌ترین ردیف کل عرض رو پر می‌کنه
+            columns = rows.maxOf { it.length }
+            val usableWidthPx = resources.displayMetrics.widthPixels - dp(8)
+            keyWidthPx = ((usableWidthPx - columns * gapPx * 2) / columns)
+                .coerceAtLeast(dp(24))
+        }
+
+        val finalKeyWidth = keyWidthPx
+
+        // ✅ هر ردیف به تعداد `columns` دکمه تقسیم می‌شه
         rows.forEachIndexed { rowIndex, row ->
-            val line = LinearLayout(this).apply {
-                orientation = LinearLayout.HORIZONTAL
-                gravity = Gravity.CENTER
-            }
-
             val chars = row.toList()
 
-            // محاسبه تعداد دکمه‌های کمکی در این ردیف
-            val extraCount = columns - chars.size
+            // تقسیم ردیف به چند خط (هر خط = columns دکمه)
+            val chunks = chars.chunked(columns)
 
-            // توزیع دکمه‌های کمکی:
-            // - ردیف آخر: Shift در ابتدا + Backspace در انتها
-            // - ردیف‌های میانی: فاصله در ابتدا/انتهای ردیف
-            when {
-                rowIndex == rows.size - 1 && extraCount >= 2 -> {
-                    // Shift
+            chunks.forEachIndexed { chunkIndex, chunk ->
+                val isLastRow = rowIndex == rows.size - 1
+                val isLastChunk = chunkIndex == chunks.size - 1
+                val isFirstChunk = chunkIndex == 0
+
+                val line = LinearLayout(this).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    gravity = Gravity.CENTER
+                }
+
+                // ✅ دکمه‌های کمکی: فقط در آخرین ردیف
+                val hasShift = isLastRow && isFirstChunk
+                val hasBackspace = isLastRow && isLastChunk
+
+                // محاسبه تعداد دکمه‌های کمکی این خط
+                var extraCount = 0
+                if (hasShift) extraCount++
+                if (hasBackspace) extraCount++
+
+                // تعداد کلید خالی برای پر کردن خط
+                val emptyCount = (columns - chunk.size - extraCount).coerceAtLeast(0)
+
+                // تقسیم کلیدهای خالی بین چپ و راست
+                val emptyLeft = if (hasShift) 0 else emptyCount / 2
+                val emptyRight = emptyCount - emptyLeft
+
+                // ✅ کلیدهای خالی چپ
+                repeat(emptyLeft) {
+                    line.addView(emptyFixedKey(keyBg, finalKeyWidth))
+                }
+
+                // ✅ Shift
+                if (hasShift) {
                     line.addView(fixedKey(getString(R.string.key_shift),
                         keyBg, fg, finalKeyWidth) {
                         uppercase = !uppercase
                         refreshKeyboard()
                     })
-                    // حروف
-                    chars.forEach { ch ->
-                        val v = if (english && uppercase) ch.uppercaseChar().toString()
-                                else ch.toString()
-                        line.addView(letterKey(v, keyBg, fg, finalKeyWidth) { commit(v) })
-                    }
-                    // Backspace
-                    line.addView(fixedKey(getString(R.string.key_backspace),
-                        Color.rgb(190, 155, 215), Color.WHITE, finalKeyWidth) {
-                        currentInputConnection?.deleteSurroundingText(1, 0)
-                        refreshSuggestions()
-                    })
                 }
-                else -> {
-                    // ردیف‌های میانی یا کوتاه: حروف در مرکز، با دکمه‌های خالی در دو طرف
-                    val leftPad = extraCount / 2
-                    val rightPad = extraCount - leftPad
-                    repeat(leftPad) {
-                        line.addView(fixedKey("", keyBg, fg, finalKeyWidth) {})
-                    }
-                    chars.forEach { ch ->
-                        val v = if (english && uppercase) ch.uppercaseChar().toString()
-                                else ch.toString()
-                        line.addView(letterKey(v, keyBg, fg, finalKeyWidth) { commit(v) })
-                    }
-                    repeat(rightPad) {
-                        line.addView(fixedKey("", keyBg, fg, finalKeyWidth) {})
-                    }
-                }
-            }
 
-            root.addView(line, LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-            ))
+                // ✅ حروف
+                chunk.forEach { ch ->
+                    val v = if (english && uppercase) ch.uppercaseChar().toString()
+                            else ch.toString()
+                    line.addView(letterKey(v, keyBg, fg, finalKeyWidth) { commit(v) })
+                }
+
+                // ✅ Backspace
+                if (hasBackspace) {
+                    line.addView(backspaceKey(
+                        Color.rgb(190, 155, 215), Color.WHITE, finalKeyWidth
+                    ))
+                }
+
+                // ✅ کلیدهای خالی راست
+                repeat(emptyRight) {
+                    line.addView(emptyFixedKey(keyBg, finalKeyWidth))
+                }
+
+                root.addView(line, LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT
+                ))
+            }
         }
         buildBottomRow(root, keyBg, fg)
     }
 
-    // ✅ دکمه حرف با عرض ثابت و پشتیبانی از نگه داشتن
+    // ✅ دکمه حرف با نگه داشتن برای کاراکترهای جایگزین
     private fun letterKey(
         text: String,
         bg: Int,
@@ -447,7 +490,7 @@ class KeyFarsiIme : InputMethodService() {
         return key
     }
 
-    // ✅ دکمه ثابت (Shift, Backspace, خالی)
+    // ✅ دکمه ثابت (Shift, خالی)
     private fun fixedKey(
         text: String,
         bg: Int,
@@ -460,6 +503,84 @@ class KeyFarsiIme : InputMethodService() {
             setMargins(dp(gap()), dp(2), dp(gap()), dp(2))
         }
         return key
+    }
+
+    // ✅ کلید خالی نامرئی (فقط برای پر کردن فضا)
+    private fun emptyFixedKey(bg: Int, widthPx: Int): View {
+        return View(this).apply {
+            layoutParams = LinearLayout.LayoutParams(widthPx, keyHeight()).apply {
+                setMargins(dp(gap()), dp(2), dp(gap()), dp(2))
+            }
+            alpha = 0f
+        }
+    }
+
+    // ✅ دکمه Backspace با تکرار خودکار (نگه داشتن = پاک کردن مداوم)
+    private fun backspaceKey(bg: Int, fg: Int, widthPx: Int): TextView {
+        val key = TextView(this).apply {
+            text = getString(R.string.key_backspace)
+            textSize = 14f
+            setTextColor(fg)
+            gravity = Gravity.CENTER
+            maxLines = 1
+            setPadding(dp(2), dp(2), dp(2), dp(5))
+            background = createKeyBackground(bg)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                elevation = dp(3).toFloat()
+                setLayerType(View.LAYER_TYPE_SOFTWARE, null)
+            }
+            layoutParams = LinearLayout.LayoutParams(widthPx, keyHeight()).apply {
+                setMargins(dp(gap()), dp(2), dp(gap()), dp(2))
+            }
+
+            setOnTouchListener { view, event ->
+                when (event.action) {
+                    MotionEvent.ACTION_DOWN -> {
+                        view.animate().translationY(dp(2).toFloat())
+                            .setDuration(40).start()
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                            view.elevation = dp(1).toFloat()
+                        }
+                        // ✅ پاک کردن اولیه + شروع تکرار
+                        deleteOneChar()
+                        startRepeat()
+                        true
+                    }
+                    MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                        view.animate().translationY(0f).setDuration(60).start()
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                            view.animate().setDuration(60).withEndAction {
+                                view.elevation = dp(3).toFloat()
+                            }.start()
+                        }
+                        stopRepeat()
+                        true
+                    }
+                    else -> false
+                }
+            }
+        }
+        return key
+    }
+
+    // ✅ شروع تکرار پاک کردن (اول ۴۰۰ms صبر، بعد هر ۵۰ms)
+    private fun startRepeat() {
+        stopRepeat()
+        repeatRunnable = Runnable {
+            deleteOneChar()
+            handler.postDelayed(repeatRunnable!!, 50L)
+        }
+        handler.postDelayed(repeatRunnable!!, 400L)
+    }
+
+    private fun stopRepeat() {
+        repeatRunnable?.let { handler.removeCallbacks(it) }
+        repeatRunnable = null
+    }
+
+    private fun deleteOneChar() {
+        currentInputConnection?.deleteSurroundingText(1, 0)
+        refreshSuggestions()
     }
 
     private fun buildBottomRow(root: LinearLayout, keyBg: Int, fg: Int) {
@@ -505,17 +626,17 @@ class KeyFarsiIme : InputMethodService() {
                 gravity = Gravity.CENTER
             }
             row.forEach { value ->
-                line.addView(keyButton(value, keyBg, fg, 20f) {
-                    when (value) {
-                        "⌫" -> {
-                            currentInputConnection?.deleteSurroundingText(1, 0)
-                            refreshSuggestions()
-                        }
-                        else -> commit(if (english) toEnglishDigits(value) else value)
-                    }
-                }, LinearLayout.LayoutParams(0, keyHeight(), 1f).apply {
-                    setMargins(dp(gap()), dp(2), dp(gap()), dp(2))
-                })
+                if (value == "⌫") {
+                    // ✅ Backspace با تکرار خودکار
+                    val bw = (resources.displayMetrics.widthPixels - dp(8)) / 4
+                    line.addView(backspaceKey(keyBg, fg, bw))
+                } else {
+                    line.addView(keyButton(value, keyBg, fg, 20f) {
+                        commit(if (english) toEnglishDigits(value) else value)
+                    }, LinearLayout.LayoutParams(0, keyHeight(), 1f).apply {
+                        setMargins(dp(gap()), dp(2), dp(gap()), dp(2))
+                    })
+                }
             }
             root.addView(line)
         }
@@ -769,7 +890,6 @@ class KeyFarsiIme : InputMethodService() {
             }
             setOnClickListener { click() }
 
-            // ✅ نگه داشتن برای کاراکترهای جایگزین
             val alternates = alternateChars[text.lowercase()] ?: alternateChars[text]
             if (!alternates.isNullOrEmpty()) {
                 setOnLongClickListener { v ->
@@ -871,6 +991,7 @@ class KeyFarsiIme : InputMethodService() {
 
     private fun refreshKeyboard() {
         suggestionRow = null
+        stopRepeat()
         setInputView(buildKeyboard())
     }
 
