@@ -376,10 +376,9 @@ class KeyFarsiIme : InputMethodService() {
         val keyWidthPx = ((usableWidthPx - columns * gapPx * 2) / columns)
             .coerceAtLeast(dp(24))
 
-        // ✅ تغییر ۳ و ۱: Shift از ردیف بالا حذف شد و بک‌اسپیس به ابتدای ردیف آخر منتقل شد
+        // ✅ تغییر ۳ و ۱: Shift از ردیف بالا حذف شد؛ بک‌اسپیس در ردیف آخر و چپ‌چین
         val allChars = mutableListOf<Any>()
         rows.forEach { row -> row.forEach { ch -> allChars.add(ch) } }
-        // بک‌اسپیس در انتهای همه حروف اضافه می‌شود تا در ردیف آخر و چپ‌چین قرار گیرد
         allChars.add("BACKSPACE")
 
         val chunks = allChars.chunked(columns)
@@ -408,7 +407,6 @@ class KeyFarsiIme : InputMethodService() {
                 when (item) {
                     is String -> {
                         if (item == "BACKSPACE") {
-                            // ✅ فقط در ردیف آخر که چپ‌چین شد، اینجا نادیده گرفته می‌شود
                             if (!isLastRow) {
                                 line.addView(backspaceKey(
                                     Color.rgb(190, 155, 215), Color.WHITE, keyWidthPx
@@ -424,11 +422,7 @@ class KeyFarsiIme : InputMethodService() {
                 }
             }
 
-            if (isLastRow) {
-                repeat(emptyRight) { line.addView(emptyFixedKey(keyWidthPx)) }
-            } else {
-                repeat(emptyRight) { line.addView(emptyFixedKey(keyWidthPx)) }
-            }
+            repeat(emptyRight) { line.addView(emptyFixedKey(keyWidthPx)) }
 
             root.addView(line, LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
@@ -556,7 +550,7 @@ class KeyFarsiIme : InputMethodService() {
             english = !english
             refreshKeyboard()
         })
-        // ✅ تغییر ۳: دکمه Shift به ردیف پایین منتقل شد؛ فقط در حالت انگلیسی نمایش داده می‌شود
+        // ✅ تغییر ۳: Shift فقط در حالت انگلیسی و در ردیف پایین
         if (english) {
             bottom.addView(actionButton(
                 getString(R.string.key_shift), keyBg, fg
@@ -586,7 +580,7 @@ class KeyFarsiIme : InputMethodService() {
             listOf("۱", "۲", "۳"),
             listOf("۴", "۵", "۶"),
             listOf("۷", "۸", "۹"),
-            listOf("۰", "⌫")  // ✅ تغییر ۵: حذف 00
+            listOf("۰", "⌫")
         )
         rows.forEach { row ->
             val line = LinearLayout(this).apply {
@@ -595,10 +589,8 @@ class KeyFarsiIme : InputMethodService() {
             }
             row.forEach { value ->
                 if (value == "⌫") {
-                    // ✅ تغییر ۱: بک‌اسپیس چپ‌چین نمی‌شود چون اینجا ردیف اعداد است، اما در جای خود
                     line.addView(backspaceKey(keyBg, fg, (resources.displayMetrics.widthPixels - dp(8)) / 3))
                 } else {
-                    // ✅ تغییر ۴: در حالت انگلیسی اعداد لاتین نمایش داده می‌شوند
                     val display = if (english) toEnglishDigits(value) else value
                     line.addView(keyButton(display, keyBg, fg, 20f) {
                         commit(if (english) toEnglishDigits(value) else value)
@@ -734,13 +726,12 @@ class KeyFarsiIme : InputMethodService() {
         })
     }
 
-    // ✅ تغییر ۲: کلیپ‌بورد با دو بخش جداگانه (پین‌ها و ۱۰ مورد آخر)
+    // ✅ کلیپ‌بورد با دو بخش جداگانه (پین‌ها و ۱۰ مورد آخر)
     private fun buildClipboard(root: LinearLayout, keyBg: Int, fg: Int) {
         val list = loadClipboard()
         val scroller = ScrollView(this)
         val column = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
 
-        // جدا کردن پین‌ها از غیرپین‌ها
         val pinnedItems = mutableListOf<Pair<Int, JSONObject>>()
         val recentItems = mutableListOf<Pair<Int, JSONObject>>()
         for (i in list.length() - 1 downTo 0) {
@@ -749,7 +740,6 @@ class KeyFarsiIme : InputMethodService() {
             else recentItems.add(i to item)
         }
 
-        // بخش پین‌شده‌ها
         if (pinnedItems.isNotEmpty()) {
             column.addView(label("📌 ${getString(R.string.clipboard_pinned_section)}", 13f, fg).apply {
                 setPadding(dp(6), dp(8), dp(6), dp(4))
@@ -760,7 +750,6 @@ class KeyFarsiIme : InputMethodService() {
             }
         }
 
-        // بخش ۱۰ مورد آخر کپی‌شده
         val recent = recentItems.take(10)
         if (recent.isNotEmpty()) {
             column.addView(label("🕐 ${getString(R.string.clipboard_recent_section)}", 13f, fg).apply {
@@ -800,7 +789,6 @@ class KeyFarsiIme : InputMethodService() {
         root.addView(actions)
     }
 
-    // ✅ ساخت یک ردیف کلیپ‌بورد (مشترک بین پین و اخیر)
     private fun buildClipboardRow(
         list: JSONArray,
         index: Int,
@@ -1154,7 +1142,7 @@ class KeyFarsiIme : InputMethodService() {
 
             list.put(JSONObject().put("text", value).put("pinned", false))
 
-            // ✅ تغییر ۲: حداکثر ۱۰ مورد غیرپین نگه داشته می‌شود (پین‌ها جدا)
+            // ✅ حداکثر ۱۰ مورد غیرپین نگه داشته می‌شود
             var unpinnedCount = 0
             for (i in list.length() - 1 downTo 0) {
                 val obj = list.optJSONObject(i) ?: continue
