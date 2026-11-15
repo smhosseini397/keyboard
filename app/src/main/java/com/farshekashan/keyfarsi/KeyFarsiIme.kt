@@ -581,9 +581,18 @@ class KeyFarsiIme : InputMethodService() {
     }
 
     private fun deleteOneChar() {
-        currentInputConnection?.deleteSurroundingText(1, 0)
-        refreshSuggestions()
+    val ic = currentInputConnection ?: return
+    // بررسی وجود متن انتخاب‌شده
+    val selected = ic.getSelectedText(0)
+    if (!selected.isNullOrEmpty()) {
+        // اگر انتخاب وجود دارد، آن را با رشته خالی جایگزین کن (یعنی حذف)
+        ic.commitText("", 1)
+    } else {
+        // اگر انتخابی وجود ندارد، کاراکتر قبل از مکان‌نما را حذف کن
+        ic.deleteSurroundingText(1, 0)
     }
+    refreshSuggestions()
+}
 
     private fun buildBottomRow(root: LinearLayout, keyBg: Int, fg: Int) {
         val bottom = LinearLayout(this).apply {
