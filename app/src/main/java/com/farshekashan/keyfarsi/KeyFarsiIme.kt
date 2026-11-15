@@ -47,18 +47,12 @@ class KeyFarsiIme : InputMethodService() {
         getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
     }
 
-    // ============================================================
-    // ✅ مقادیر پیش‌فرض تنظیمات
-    // ============================================================
     private val DEFAULT_KEYBOARD_WIDTH = 378
     private val DEFAULT_KEYBOARD_HEIGHT = 349
     private val DEFAULT_KEY_WIDTH = 34
     private val DEFAULT_KEY_HEIGHT = 48
     private val DEFAULT_KEY_GAP = 5
 
-    // ============================================================
-    // ✅ متن‌های ثابت کیبورد — مستقل از زبان سیستم
-    // ============================================================
     private fun t(key: String): String {
         return when (key) {
             "key_space" -> "فاصله"
@@ -94,9 +88,6 @@ class KeyFarsiIme : InputMethodService() {
         }
     }
 
-    // ============================================================
-    // ✅ ردیف‌های حروف
-    // ============================================================
     private val persianRows = listOf(
         "ضصثقفغعهخحجچ",
         "شسیبلاتنمکگ",
@@ -277,6 +268,9 @@ class KeyFarsiIme : InputMethodService() {
         return if (id > 0) res.getDimensionPixelSize(id) else 0
     }
 
+    // ============================================================
+    // ✅ اصلاح مشکل ۱: ارتفاع ثابت برای جلوگیری از پرش
+    // ============================================================
     private fun buildKeyboard(): View {
         val dark = prefs.getBoolean("dark", false)
         val background = if (dark) Color.rgb(29, 29, 35) else Color.rgb(232, 228, 239)
@@ -298,9 +292,10 @@ class KeyFarsiIme : InputMethodService() {
             setBackgroundColor(background)
             val navBar = getNavigationBarHeight()
             setPadding(dp(4), dp(4), dp(4), navBar + dp(4))
+            // ✅ ارتفاع ثابت برای جلوگیری از پرش
             layoutParams = ViewGroup.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
+                dp(requestedHeight)
             )
         }
         keyboardRoot = root
@@ -308,10 +303,9 @@ class KeyFarsiIme : InputMethodService() {
         val content = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_HORIZONTAL
-            minimumHeight = dp(requestedHeight)
             layoutParams = LinearLayout.LayoutParams(
                 actualWidth,
-                ViewGroup.LayoutParams.WRAP_CONTENT
+                ViewGroup.LayoutParams.MATCH_PARENT
             )
         }
         root.addView(content)
@@ -422,7 +416,7 @@ class KeyFarsiIme : InputMethodService() {
     }
 
     // ============================================================
-    // ✅ کیبورد حروف — پشتیبانی از حالت «بزرگ استاندارد»
+    // ✅ اصلاح مشکل ۳: چیدمان استاندارد (مثل Gboard)
     // ============================================================
     private fun buildLetterKeyboard(root: LinearLayout, keyBg: Int, fg: Int) {
         val standardBig = prefs.getBoolean("standard_big_keyboard", false)
@@ -431,445 +425,120 @@ class KeyFarsiIme : InputMethodService() {
         val screenWidthPx = resources.displayMetrics.widthPixels
         val usableWidthPx = screenWidthPx - dp(8)
 
-        val columns: Int
-        val gapDp: Int
         if (standardBig) {
-            columns = rows.maxOf { it.length }.coerceAtLeast(10)
-            gapDp = 9
-        } else {
-            val configuredKeyWidth = prefs.getInt("key_width", DEFAULT_KEY_WIDTH)
-            gapDp = gap()
-            columns = if (configuredKeyWidth > 0) {
-                val manualKeyPx = dp(configuredKeyWidth)
-                val gapPx2 = dp(gapDp)
-                ((usableWidthPx - gapPx2 * 2) / (manualKeyPx + gapPx2 * 2))
-                    .coerceIn(2, 12)
-            } else {
-                rows.maxOf { it.length }
-            }
-        }
+            // ✅ چیدمان استاندارد: دکمه‌ها بزرگ‌تر و با فاصله، ردیف‌ها به شکل استاندارد
+            val gapPx = dp(6)
+            val columns = 10
+            val keyWidthPx = ((usableWidthPx - (columns * gapPx * 2)) / columns).coerceAtLeast(dp(24))
+            val keyHeightPx = dp(56)
 
-        val gapPx = dp(gapDp)
-        val keyWidthPx = ((usableWidthPx - columns * gapPx * 2) / columns)
-            .coerceAtLeast(dp(24))
-
-        val effectiveKeyHeight = if (standardBig)
-            dp((prefs.getInt("key_height", DEFAULT_KEY_HEIGHT) + 6)
-                .coerceAtLeast(DEFAULT_KEY_HEIGHT))
-        else keyHeight()
-
-        val allChars = mutableListOf<Char>()
-        rows.forEach { row -> row.forEach { ch -> allChars.add(ch) } }
-
-        val chunks: List<List<Char>> = if (standardBig) {
-            listOf(
-                allChars.take(10),
-                allChars.drop(10).take(9),
-                allChars.drop(19).take(7)
-            ).filter { it.isNotEmpty() }
-        } else {
-            allChars.chunked(columns)
-        }
-
-        chunks.forEach { chunk ->
-            val line = LinearLayout(this).apply {
-                orientation = LinearLayout.HORIZONTAL
-                gravity = Gravity.CENTER
-            }
-
-            val emptyCount = columns - chunk.size
+            // ردیف اول
+            addStandardRow(root, rows[0], columns, keyWidthPx, keyHeightPx, gapPx, keyBg, fg)
+            // ردیف دوم
+            addStandardRow(root, rows[1], columns, keyWidthPx, keyHeightPx, gapPx, keyBg, fg)
+            
+            // ردیف سوم (با Shift در چپ و Backspace در راست)
+            val row3 = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
+            val row3Chars = rows[2].toList()
+            val emptyCount = columns - row3Chars.size - 1 // -1 برای دکمه Shift در سمت چپ
             val emptyLeft = emptyCount / 2
             val emptyRight = emptyCount - emptyLeft
 
-            repeat(emptyLeft) { line.addView(emptyFixedKeySized(keyWidthPx, effectiveKeyHeight, gapPx)) }
-
-            chunk.forEach { item ->
-                val v = if (english && uppercase) item.uppercaseChar().toString()
-                        else item.toString()
-                line.addView(letterKeySized(v, keyBg, fg, keyWidthPx, effectiveKeyHeight, gapPx) {
-                    commit(v)
+            // دکمه Shift در سمت چپ (فقط در حالت انگلیسی، در فارسی می‌تواند خالی باشد)
+            if (english) {
+                row3.addView(actionButton(t("key_shift"), Color.rgb(190, 155, 215), Color.WHITE) {
+                    uppercase = !uppercase
+                    refreshKeyboard()
+                }, LinearLayout.LayoutParams(keyWidthPx * 2, keyHeightPx).apply {
+                    setMargins(gapPx, dp(2), gapPx, dp(2))
                 })
+            } else {
+                row3.addView(View(this).apply { layoutParams = LinearLayout.LayoutParams(keyWidthPx * 2, keyHeightPx) })
             }
 
-            repeat(emptyRight) { line.addView(emptyFixedKeySized(keyWidthPx, effectiveKeyHeight, gapPx)) }
-
-            root.addView(line, LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-            ))
-        }
-
-        // ✅ ردیف بک‌اسپیس — سمت راست
-        val bsRow = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.END
-        }
-        bsRow.addView(View(this).apply {
-            layoutParams = LinearLayout.LayoutParams(0, effectiveKeyHeight, 1f)
-        })
-        bsRow.addView(backspaceKeySized(
-            Color.rgb(190, 155, 215), Color.WHITE,
-            keyWidthPx * 2, effectiveKeyHeight, gapPx
-        ))
-        root.addView(bsRow, LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT,
-            ViewGroup.LayoutParams.WRAP_CONTENT
-        ))
-
-        buildBottomRow(root, keyBg, fg)
-    }
-
-    private fun letterKey(
-        text: String,
-        bg: Int,
-        fg: Int,
-        widthPx: Int,
-        click: () -> Unit
-    ): TextView {
-        val key = keyButton(text, bg, fg) { click() }
-        key.layoutParams = LinearLayout.LayoutParams(widthPx, keyHeight()).apply {
-            setMargins(dp(gap()), dp(2), dp(gap()), dp(2))
-        }
-        return key
-    }
-
-    private fun emptyFixedKey(widthPx: Int): View {
-        return View(this).apply {
-            layoutParams = LinearLayout.LayoutParams(widthPx, keyHeight()).apply {
-                setMargins(dp(gap()), dp(2), dp(gap()), dp(2))
+            repeat(emptyLeft) { row3.addView(View(this).apply { layoutParams = LinearLayout.LayoutParams(keyWidthPx, keyHeightPx) }) }
+            row3Chars.forEach { item ->
+                val v = if (english && uppercase) item.uppercaseChar().toString() else item.toString()
+                row3.addView(letterKeySized(v, keyBg, fg, keyWidthPx, keyHeightPx, gapPx) { commit(v) })
             }
-            alpha = 0f
-        }
-    }
+            repeat(emptyRight) { row3.addView(View(this).apply { layoutParams = LinearLayout.LayoutParams(keyWidthPx, keyHeightPx) }) }
+            
+            // دکمه Backspace در سمت راست
+            row3.addView(backspaceKeySized(Color.rgb(190, 155, 215), Color.WHITE, keyWidthPx * 2, keyHeightPx, gapPx))
+            root.addView(row3)
 
-    private fun letterKeySized(
-        text: String, bg: Int, fg: Int,
-        widthPx: Int, heightPx: Int, gapPx: Int,
-        click: () -> Unit
-    ): TextView {
-        val key = keyButton(text, bg, fg) { click() }
-        key.layoutParams = LinearLayout.LayoutParams(widthPx, heightPx).apply {
-            setMargins(gapPx, dp(2), gapPx, dp(2))
-        }
-        return key
-    }
+            // ردیف پایین استاندارد
+            val bottom = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
+            bottom.addView(actionButton("?123", keyBg, fg) { toggleMode { numberMode = true } }, LinearLayout.LayoutParams(keyWidthPx * 1.5.toInt(), keyHeightPx).apply { setMargins(gapPx, dp(2), gapPx, dp(2)) })
+            bottom.addView(actionButton(t("key_comma"), keyBg, fg) { commit(",") }, LinearLayout.LayoutParams(keyWidthPx, keyHeightPx).apply { setMargins(gapPx, dp(2), gapPx, dp(2)) })
+            bottom.addView(actionButton(t("key_globe"), keyBg, fg) { english = !english; refreshKeyboard() }, LinearLayout.LayoutParams(keyWidthPx, keyHeightPx).apply { setMargins(gapPx, dp(2), gapPx, dp(2)) })
+            bottom.addView(keyButton(t("key_space"), keyBg, fg) { commit(" ") }, LinearLayout.LayoutParams(0, keyHeightPx, 3f).apply { setMargins(gapPx, dp(2), gapPx, dp(2)) })
+            bottom.addView(actionButton(t("key_dot"), keyBg, fg) { commit(".") }, LinearLayout.LayoutParams(keyWidthPx, keyHeightPx).apply { setMargins(gapPx, dp(2), gapPx, dp(2)) })
+            bottom.addView(actionButton(t("key_enter"), accent, Color.WHITE) { sendEnter() }, LinearLayout.LayoutParams(keyWidthPx * 1.5.toInt(), keyHeightPx).apply { setMargins(gapPx, dp(2), gapPx, dp(2)) })
+            root.addView(bottom)
 
-    private fun emptyFixedKeySized(widthPx: Int, heightPx: Int, gapPx: Int): View {
-        return View(this).apply {
-            layoutParams = LinearLayout.LayoutParams(widthPx, heightPx).apply {
-                setMargins(gapPx, dp(2), gapPx, dp(2))
-            }
-            alpha = 0f
-        }
-    }
-
-    private fun backspaceKey(bg: Int, fg: Int, widthPx: Int): TextView {
-        val key = TextView(this).apply {
-            text = t("key_backspace")
-            textSize = 14f
-            setTextColor(fg)
-            gravity = Gravity.CENTER
-            maxLines = 1
-            setPadding(dp(2), dp(2), dp(2), dp(5))
-            background = createKeyBackground(bg)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                elevation = dp(3).toFloat()
-                setLayerType(View.LAYER_TYPE_SOFTWARE, null)
-            }
-            layoutParams = LinearLayout.LayoutParams(widthPx, keyHeight()).apply {
-                setMargins(dp(gap()), dp(2), dp(gap()), dp(2))
-            }
-
-            setOnTouchListener { view, event ->
-                when (event.action) {
-                    MotionEvent.ACTION_DOWN -> {
-                        view.animate().translationY(dp(2).toFloat())
-                            .setDuration(40).start()
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                            view.elevation = dp(1).toFloat()
-                        }
-                        deleteOneChar()
-                        startRepeat()
-                        true
-                    }
-                    MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                        view.animate().translationY(0f).setDuration(60).start()
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                            view.animate().setDuration(60).withEndAction {
-                                view.elevation = dp(3).toFloat()
-                            }.start()
-                        }
-                        stopRepeat()
-                        true
-                    }
-                    else -> false
-                }
-            }
-        }
-        return key
-    }
-
-    private fun backspaceKeySized(
-        bg: Int, fg: Int, widthPx: Int, heightPx: Int, gapPx: Int
-    ): TextView {
-        val key = TextView(this).apply {
-            text = t("key_backspace")
-            textSize = 14f
-            setTextColor(fg)
-            gravity = Gravity.CENTER
-            maxLines = 1
-            setPadding(dp(2), dp(2), dp(2), dp(5))
-            background = createKeyBackground(bg)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                elevation = dp(3).toFloat()
-                setLayerType(View.LAYER_TYPE_SOFTWARE, null)
-            }
-            layoutParams = LinearLayout.LayoutParams(widthPx, heightPx).apply {
-                setMargins(gapPx, dp(2), gapPx, dp(2))
-            }
-
-            setOnTouchListener { view, event ->
-                when (event.action) {
-                    MotionEvent.ACTION_DOWN -> {
-                        view.animate().translationY(dp(2).toFloat())
-                            .setDuration(40).start()
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                            view.elevation = dp(1).toFloat()
-                        }
-                        deleteOneChar()
-                        startRepeat()
-                        true
-                    }
-                    MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                        view.animate().translationY(0f).setDuration(60).start()
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                            view.animate().setDuration(60).withEndAction {
-                                view.elevation = dp(3).toFloat()
-                            }.start()
-                        }
-                        stopRepeat()
-                        true
-                    }
-                    else -> false
-                }
-            }
-        }
-        return key
-    }
-
-    private fun startRepeat() {
-        stopRepeat()
-        repeatRunnable = Runnable {
-            deleteOneChar()
-            handler.postDelayed(repeatRunnable!!, 50L)
-        }
-        handler.postDelayed(repeatRunnable!!, 400L)
-    }
-
-    private fun stopRepeat() {
-        repeatRunnable?.let { handler.removeCallbacks(it) }
-        repeatRunnable = null
-    }
-
-    private fun deleteOneChar() {
-        val ic = currentInputConnection ?: return
-        val selected = ic.getSelectedText(0)
-        if (!selected.isNullOrEmpty()) {
-            ic.commitText("", 1)
         } else {
-            ic.deleteSurroundingText(1, 0)
-        }
-        refreshSuggestions()
-    }
-
-    private fun buildBottomRow(root: LinearLayout, keyBg: Int, fg: Int) {
-        val bottom = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER
-        }
-        bottom.addView(actionButton("?123", keyBg, fg) {
-            toggleMode { numberMode = true }
-        })
-        bottom.addView(actionButton(t("key_comma"), keyBg, fg) {
-            commit(",")
-        })
-        bottom.addView(actionButton(t("key_globe"), keyBg, fg) {
-            english = !english
-            refreshKeyboard()
-        })
-        if (english) {
-            bottom.addView(actionButton(t("key_shift"), keyBg, fg) {
-                uppercase = !uppercase
-                refreshKeyboard()
-            })
-        }
-        bottom.addView(keyButton(t("key_space"), keyBg, fg) {
-            commit(" ")
-        }, LinearLayout.LayoutParams(0, keyHeight(), 3f).apply {
-            setMargins(dp(gap()), dp(2), dp(gap()), dp(2))
-        })
-        bottom.addView(actionButton(t("key_dot"), keyBg, fg) {
-            commit(".")
-        })
-        bottom.addView(actionButton(
-            t("key_enter"),
-            Color.rgb(103, 80, 164), Color.WHITE
-        ) { sendEnter() })
-        root.addView(bottom)
-    }
-
-    private fun buildNumberPad(root: LinearLayout, keyBg: Int, fg: Int) {
-        val rows = listOf(
-            listOf("۱", "۲", "۳"),
-            listOf("۴", "۵", "۶"),
-            listOf("۷", "۸", "۹"),
-            listOf("⌫", "۰")
-        )
-        rows.forEach { row ->
-            val line = LinearLayout(this).apply {
-                orientation = LinearLayout.HORIZONTAL
-                gravity = Gravity.CENTER
+            // ✅ چیدمان عادی (قبلی)
+            val configuredKeyWidth = prefs.getInt("key_width", DEFAULT_KEY_WIDTH)
+            val gapDp = gap()
+            val columns = if (configuredKeyWidth > 0) {
+                val manualKeyPx = dp(configuredKeyWidth)
+                val gapPx2 = dp(gapDp)
+                ((usableWidthPx - gapPx2 * 2) / (manualKeyPx + gapPx2 * 2)).coerceIn(2, 12)
+            } else {
+                rows.maxOf { it.length }
             }
-            row.forEach { value ->
-                if (value == "⌫") {
-                    line.addView(backspaceKey(keyBg, fg, (resources.displayMetrics.widthPixels - dp(8)) / 3))
-                } else {
-                    val display = if (english) toEnglishDigits(value) else value
-                    line.addView(keyButton(display, keyBg, fg, 20f) {
-                        commit(if (english) toEnglishDigits(value) else value)
-                    }, LinearLayout.LayoutParams(0, keyHeight(), 1f).apply {
-                        setMargins(dp(gap()), dp(2), dp(gap()), dp(2))
-                    })
+
+            val gapPx = dp(gapDp)
+            val keyWidthPx = ((usableWidthPx - columns * gapPx * 2) / columns).coerceAtLeast(dp(24))
+            val effectiveKeyHeight = keyHeight()
+
+            val allChars = mutableListOf<Char>()
+            rows.forEach { row -> row.forEach { ch -> allChars.add(ch) } }
+
+            val chunks = allChars.chunked(columns)
+
+            chunks.forEach { chunk ->
+                val line = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
+                val emptyCount = columns - chunk.size
+                val emptyLeft = emptyCount / 2
+                val emptyRight = emptyCount - emptyLeft
+                repeat(emptyLeft) { line.addView(emptyFixedKeySized(keyWidthPx, effectiveKeyHeight, gapPx)) }
+                chunk.forEach { item ->
+                    val v = if (english && uppercase) item.uppercaseChar().toString() else item.toString()
+                    line.addView(letterKeySized(v, keyBg, fg, keyWidthPx, effectiveKeyHeight, gapPx) { commit(v) })
                 }
+                repeat(emptyRight) { line.addView(emptyFixedKeySized(keyWidthPx, effectiveKeyHeight, gapPx)) }
+                root.addView(line)
             }
-            root.addView(line)
-        }
 
-        val symbolsRow = listOf("؟","%","@","×","*","(",")","!","+","_","=",".")
-        val symLine = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER
-        }
-        symbolsRow.forEach { s ->
-            symLine.addView(keyButton(s, keyBg, fg, 16f) { commit(s) },
-                LinearLayout.LayoutParams(0, keyHeight(), 1f).apply {
-                    setMargins(dp(2), dp(2), dp(2), dp(2))
-                })
-        }
-        root.addView(symLine)
+            val bsRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.END }
+            bsRow.addView(View(this).apply { layoutParams = LinearLayout.LayoutParams(0, effectiveKeyHeight, 1f) })
+            bsRow.addView(backspaceKeySized(Color.rgb(190, 155, 215), Color.WHITE, keyWidthPx * 2, effectiveKeyHeight, gapPx))
+            root.addView(bsRow)
 
-        val controls = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER
+            buildBottomRow(root, keyBg, fg)
         }
-        controls.addView(actionButton(t("mode_letters"), keyBg, fg) {
-            numberMode = false
-            refreshKeyboard()
-        })
-        controls.addView(actionButton(t("mode_symbols"), keyBg, fg) {
-            symbolMode = true
-            numberMode = false
-            refreshKeyboard()
-        })
-        controls.addView(actionButton(t("mode_emoji"), keyBg, fg) {
-            emojiMode = true
-            numberMode = false
-            refreshKeyboard()
-        })
-        controls.addView(actionButton(
-            t("key_enter"),
-            Color.rgb(103, 80, 164), Color.WHITE
-        ) { sendEnter() })
-        root.addView(controls)
     }
 
-    private fun buildSymbolPage(root: LinearLayout, keyBg: Int, fg: Int) {
-        val scroller = ScrollView(this)
-        val column = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        allSymbols.chunked(8).forEach { row ->
-            val line = LinearLayout(this).apply {
-                orientation = LinearLayout.HORIZONTAL
-                gravity = Gravity.CENTER
-            }
-            row.forEach { symbol ->
-                line.addView(keyButton(symbol, keyBg, fg, 18f) { commit(symbol) },
-                    LinearLayout.LayoutParams(0, keyHeight(), 1f).apply {
-                        setMargins(dp(2), dp(2), dp(2), dp(2))
-                    })
-            }
-            column.addView(line)
-        }
-        scroller.addView(column)
-        root.addView(scroller, LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f
-        ))
+    private fun addStandardRow(root: LinearLayout, rowStr: String, columns: Int, keyWidthPx: Int, keyHeightPx: Int, gapPx: Int, keyBg: Int, fg: Int) {
+        val line = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
+        val chars = rowStr.toList()
+        val emptyCount = columns - chars.size
+        val emptyLeft = emptyCount / 2
+        val emptyRight = emptyCount - emptyLeft
 
-        val controls = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER
+        repeat(emptyLeft) { line.addView(View(this).apply { layoutParams = LinearLayout.LayoutParams(keyWidthPx, keyHeightPx).apply { setMargins(gapPx, dp(2), gapPx, dp(2)) } }) }
+        chars.forEach { item ->
+            val v = if (english && uppercase) item.uppercaseChar().toString() else item.toString()
+            line.addView(letterKeySized(v, keyBg, fg, keyWidthPx, keyHeightPx, gapPx) { commit(v) })
         }
-        controls.addView(actionButton(t("mode_numbers"), keyBg, fg) {
-            symbolMode = false
-            numberMode = true
-            refreshKeyboard()
-        })
-        controls.addView(actionButton(t("mode_emoji"), keyBg, fg) {
-            symbolMode = false
-            emojiMode = true
-            refreshKeyboard()
-        })
-        controls.addView(actionButton(
-            t("mode_letters"),
-            Color.rgb(103, 80, 164), Color.WHITE
-        ) {
-            symbolMode = false
-            refreshKeyboard()
-        })
-        root.addView(controls)
-    }
-
-    private fun buildEmojiPage(root: LinearLayout, keyBg: Int, fg: Int) {
-        val categories = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER
-        }
-        emojiCategories.forEachIndexed { index, category ->
-            categories.addView(actionButton(category.first, keyBg, fg) {
-                emojiCategory = index
-                refreshKeyboard()
-            })
-        }
-        val categoryScroll = HorizontalScrollView(this).apply {
-            isHorizontalScrollBarEnabled = false
-            addView(categories)
-        }
-        root.addView(categoryScroll)
-
-        val emojis = emojiCategories[emojiCategory].second
-        emojis.chunked(8).forEach { row ->
-            val line = LinearLayout(this).apply {
-                orientation = LinearLayout.HORIZONTAL
-                gravity = Gravity.CENTER
-            }
-            row.forEach { emoji ->
-                line.addView(keyButton(emoji, keyBg, fg, 22f) { commit(emoji) },
-                    LinearLayout.LayoutParams(0, keyHeight(), 1f).apply {
-                        setMargins(dp(2), dp(2), dp(2), dp(2))
-                    })
-            }
-            root.addView(line)
-        }
-        root.addView(actionButton(
-            t("mode_back_to_letters"),
-            Color.rgb(103, 80, 164), Color.WHITE
-        ) {
-            emojiMode = false
-            refreshKeyboard()
-        })
+        repeat(emptyRight) { line.addView(View(this).apply { layoutParams = LinearLayout.LayoutParams(keyWidthPx, keyHeightPx).apply { setMargins(gapPx, dp(2), gapPx, dp(2)) } }) }
+        root.addView(line)
     }
 
     // ============================================================
-    // ✅ کلیپ‌بورد — ۱۰ مورد آخر اول، پین‌شده‌ها زیرشان (نامحدود)
+    // ✅ اصلاح مشکل ۲: محدود کردن ارتفاع کلیپ‌بورد (اسکرول)
     // ============================================================
     private fun buildClipboard(root: LinearLayout, keyBg: Int, fg: Int) {
         val list = loadClipboard()
@@ -917,8 +586,10 @@ class KeyFarsiIme : InputMethodService() {
         }
 
         scroller.addView(column)
+        // ✅ ارتفاع ثابت برای کلیپ‌بورد (260dp) به جای پر کردن کل فضا
         root.addView(scroller, LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            dp(260)
         ))
 
         val actions = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
@@ -983,8 +654,7 @@ class KeyFarsiIme : InputMethodService() {
 
     private fun gap(): Int = prefs.getInt("key_gap", DEFAULT_KEY_GAP).coerceAtLeast(0)
 
-    private fun dp(value: Int): Int =
-        (value * resources.displayMetrics.density).toInt()
+    private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
 
     private fun label(text: String, size: Float, color: Int) = TextView(this).apply {
         this.text = text
@@ -1016,18 +686,13 @@ class KeyFarsiIme : InputMethodService() {
             setOnTouchListener { view, event ->
                 when (event.action) {
                     MotionEvent.ACTION_DOWN -> {
-                        view.animate().translationY(dp(2).toFloat())
-                            .setDuration(40).start()
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                            view.elevation = dp(1).toFloat()
-                        }
+                        view.animate().translationY(dp(2).toFloat()).setDuration(40).start()
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) view.elevation = dp(1).toFloat()
                     }
                     MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                         view.animate().translationY(0f).setDuration(60).start()
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                            view.animate().setDuration(60).withEndAction {
-                                view.elevation = dp(3).toFloat()
-                            }.start()
+                            view.animate().setDuration(60).withEndAction { view.elevation = dp(3).toFloat() }.start()
                         }
                     }
                 }
@@ -1052,7 +717,6 @@ class KeyFarsiIme : InputMethodService() {
             setPadding(dp(4), dp(4), dp(4), dp(4))
             setBackgroundColor(Color.rgb(250, 250, 252))
         }
-
         alternatives.forEach { alt ->
             val btn = TextView(this).apply {
                 text = alt
@@ -1071,7 +735,6 @@ class KeyFarsiIme : InputMethodService() {
                 setMargins(dp(2), dp(2), dp(2), dp(2))
             })
         }
-
         popup.contentView = container
         popup.isOutsideTouchable = true
         popup.isFocusable = true
@@ -1106,10 +769,7 @@ class KeyFarsiIme : InputMethodService() {
             intArrayOf(topColor, bottomColor)
         ).apply {
             cornerRadius = dp(9).toFloat()
-            setStroke(
-                dp(1),
-                if (dark) 0xFF55515F.toInt() else 0xFFE0DCE7.toInt()
-            )
+            setStroke(dp(1), if (dark) 0xFF55515F.toInt() else 0xFFE0DCE7.toInt())
         }
 
         val shadow = GradientDrawable(
@@ -1141,15 +801,10 @@ class KeyFarsiIme : InputMethodService() {
     }
 
     private fun commit(value: String) {
-        if (value == " " || value == "\n" ||
-            value in listOf(".", ",", "!", "؟", "؛")
-        ) {
+        if (value == " " || value == "\n" || value in listOf(".", ",", "!", "؟", "؛")) {
             learnPreviousWord()
         }
-
-        // ✅ در فیلدهای عددی، فارسی/عربی را به انگلیسی تبدیل کن
         val finalValue = if (isNumericInput()) toEnglishDigits(value) else value
-
         currentInputConnection?.commitText(finalValue, 1)
         if (value == " ") uppercase = false
         refreshSuggestions()
@@ -1158,54 +813,37 @@ class KeyFarsiIme : InputMethodService() {
     private fun isNumericInput(): Boolean {
         val type = currentInputEditorInfo?.inputType ?: return false
         val inputClass = type and InputType.TYPE_MASK_CLASS
-        return inputClass == InputType.TYPE_CLASS_NUMBER ||
-            inputClass == InputType.TYPE_CLASS_PHONE
+        return inputClass == InputType.TYPE_CLASS_NUMBER || inputClass == InputType.TYPE_CLASS_PHONE
     }
 
-    // ============================================================
-    // ✅ اینتر: multiline → newline، بقیه → performEditorAction
-    // ============================================================
     private fun sendEnter() {
         val info = currentInputEditorInfo ?: return
         val ic = currentInputConnection ?: return
-
         val inputType = info.inputType and InputType.TYPE_MASK_CLASS
         val isMultiline = (info.inputType and InputType.TYPE_TEXT_FLAG_MULTI_LINE) != 0
-
         if (isMultiline && inputType == InputType.TYPE_CLASS_TEXT) {
             ic.commitText("\n", 1)
             return
         }
-
         val action = info.imeOptions and EditorInfo.IME_MASK_ACTION
-        if (action != EditorInfo.IME_ACTION_NONE &&
-            action != EditorInfo.IME_ACTION_UNSPECIFIED
-        ) {
+        if (action != EditorInfo.IME_ACTION_NONE && action != EditorInfo.IME_ACTION_UNSPECIFIED) {
             ic.performEditorAction(action)
             return
         }
-
         ic.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_ENTER))
         ic.sendKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_ENTER))
     }
 
     private fun getCurrentWord(): String {
         return try {
-            val before = currentInputConnection
-                ?.getTextBeforeCursor(100, 0)
-                ?.toString()
-                .orEmpty()
+            val before = currentInputConnection?.getTextBeforeCursor(100, 0)?.toString().orEmpty()
             Regex("[\\p{L}\\p{M}]+$").find(before)?.value.orEmpty()
-        } catch (_: Exception) {
-            ""
-        }
+        } catch (_: Exception) { "" }
     }
 
     private fun replaceCurrentWord(newWord: String) {
         val oldWord = getCurrentWord()
-        if (oldWord.isNotEmpty()) {
-            currentInputConnection?.deleteSurroundingText(oldWord.length, 0)
-        }
+        if (oldWord.isNotEmpty()) currentInputConnection?.deleteSurroundingText(oldWord.length, 0)
         currentInputConnection?.commitText(newWord, 1)
         learnWord(newWord)
         refreshSuggestions()
@@ -1215,25 +853,15 @@ class KeyFarsiIme : InputMethodService() {
         if (word.isBlank()) return emptyList()
         val normalized = word.lowercase()
         val learned = loadLearnedWords()
-
         val learnedMatches = learned.keys().asSequence()
-            .filter {
-                it.lowercase().startsWith(normalized) &&
-                    it.lowercase() != normalized
-            }
+            .filter { it.lowercase().startsWith(normalized) && it.lowercase() != normalized }
             .sortedByDescending { learned.optInt(it, 0) }
             .toList()
-
-        val common = commonWords.filter {
-            it.startsWith(normalized) && it != normalized
-        }
-
+        val common = commonWords.filter { it.startsWith(normalized) && it != normalized }
         return (learnedMatches + common).distinct().take(3)
     }
 
-    private fun learnPreviousWord() {
-        learnWord(getCurrentWord().trim())
-    }
+    private fun learnPreviousWord() { learnWord(getCurrentWord().trim()) }
 
     private fun learnWord(rawWord: String) {
         if (isSensitiveInput()) return
@@ -1241,22 +869,15 @@ class KeyFarsiIme : InputMethodService() {
         if (word.length < 2 || word.length > 40) return
         if (word.any { it.isDigit() }) return
         if (word.any { !it.isLetter() && it != '\u200c' }) return
-
         val words = loadLearnedWords()
         val currentCount = words.optInt(word, 0)
         words.put(word, (currentCount + 1).coerceAtMost(1000))
-
-        prefs.edit()
-            .putString("learned_words", words.toString())
-            .apply()
+        prefs.edit().putString("learned_words", words.toString()).apply()
     }
 
     private fun loadLearnedWords(): JSONObject {
-        return try {
-            JSONObject(prefs.getString("learned_words", "{}") ?: "{}")
-        } catch (_: Exception) {
-            JSONObject()
-        }
+        return try { JSONObject(prefs.getString("learned_words", "{}") ?: "{}") }
+        catch (_: Exception) { JSONObject() }
     }
 
     private fun isSensitiveInput(): Boolean {
@@ -1288,29 +909,15 @@ class KeyFarsiIme : InputMethodService() {
         "with","from","will","would","could","should"
     )
 
-    // ============================================================
-    // ✅ کلیپ‌بورد: پین نامحدود + فقط ۱۰ مورد آخر unpinned
-    // ============================================================
     private fun saveClipboardCurrent() {
         try {
             val clip = clipboard.primaryClip ?: return
             if (clip.itemCount == 0) return
-            val value = clip.getItemAt(0)
-                .coerceToText(this)
-                ?.toString()
-                ?.trim()
-                .orEmpty()
+            val value = clip.getItemAt(0).coerceToText(this)?.toString()?.trim().orEmpty()
             if (value.isBlank()) return
-
             val list = loadClipboard()
-
-            if ((0 until list.length()).any {
-                    list.optJSONObject(it)?.optString("text") == value
-                }
-            ) return
-
+            if ((0 until list.length()).any { list.optJSONObject(it)?.optString("text") == value }) return
             list.put(JSONObject().put("text", value).put("pinned", false))
-
             val unpinnedIndexes = mutableListOf<Int>()
             for (i in 0 until list.length()) {
                 val obj = list.optJSONObject(i) ?: continue
@@ -1333,11 +940,8 @@ class KeyFarsiIme : InputMethodService() {
     }
 
     private fun loadClipboard(): JSONArray {
-        return try {
-            JSONArray(prefs.getString("clipboard", "[]"))
-        } catch (_: Exception) {
-            JSONArray()
-        }
+        return try { JSONArray(prefs.getString("clipboard", "[]")) }
+        catch (_: Exception) { JSONArray() }
     }
 
     private fun saveClipboard(array: JSONArray) {
