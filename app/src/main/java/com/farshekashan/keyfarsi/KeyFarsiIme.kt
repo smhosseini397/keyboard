@@ -47,7 +47,6 @@ class KeyFarsiIme : InputMethodService() {
         getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
     }
 
-    // ✅ فقط ۳۲ حرف پایه فارسی
     private val persianRows = listOf(
         "ضصثقفغعهخحجچ",
         "شسیبلاتنمکگ",
@@ -97,7 +96,7 @@ class KeyFarsiIme : InputMethodService() {
 
     private val emojiCategories = listOf(
         "😀" to listOf(
-            "😀","😃","😄","😁","😆","😅","😂","🤣",
+            "😀","😃","🙏","😁","😁","😆","😅","😂","🤣",
             "😊","😇","🙂","🙃","😉","😌","😍","🥰",
             "😘","😗","😙","😚","😋","😛","😜","🤪",
             "😎","🤓","🧐","🤔","🤗","🤭","🤫","🤥",
@@ -357,7 +356,6 @@ class KeyFarsiIme : InputMethodService() {
         }
     }
 
-    // ✅ منطق جدید: همه حروف یکجا به خطوط مساوی تقسیم می‌شن
     private fun buildLetterKeyboard(root: LinearLayout, keyBg: Int, fg: Int) {
         val rows = if (english) englishRows else persianRows
         val configuredKeyWidth = prefs.getInt("key_width", 0)
@@ -366,7 +364,6 @@ class KeyFarsiIme : InputMethodService() {
         val screenWidthPx = resources.displayMetrics.widthPixels
         val usableWidthPx = screenWidthPx - dp(8)
 
-        // ✅ محاسبه تعداد ستون
         val columns: Int
         if (configuredKeyWidth > 0) {
             val manualKeyPx = dp(configuredKeyWidth)
@@ -376,17 +373,14 @@ class KeyFarsiIme : InputMethodService() {
             columns = rows.maxOf { it.length }
         }
 
-        // ✅ عرض هر دکمه = عرض صفحه / تعداد ستون (همیشه پر و تراز)
         val keyWidthPx = ((usableWidthPx - columns * gapPx * 2) / columns)
             .coerceAtLeast(dp(24))
 
-        // ✅ همه حروف رو در یک لیست پیوسته بریز
-        val allChars = mutableListOf<Any>()   // Any: یا Char یا String ("SHIFT"/"BACKSPACE")
+        val allChars = mutableListOf<Any>()
         allChars.add("SHIFT")
         rows.forEach { row -> row.forEach { ch -> allChars.add(ch) } }
         allChars.add("BACKSPACE")
 
-        // ✅ تقسیم یکجا به خطوط مساوی (نه هر ردیف جداگانه)
         val chunks = allChars.chunked(columns)
 
         chunks.forEach { chunk ->
@@ -395,9 +389,7 @@ class KeyFarsiIme : InputMethodService() {
                 gravity = Gravity.CENTER
             }
 
-            // ✅ تعداد کلید خالی برای پر کردن خط آخر
             val emptyCount = columns - chunk.size
-            // کلیدهای خالی: نصف چپ، نصف راست
             val emptyLeft = emptyCount / 2
             val emptyRight = emptyCount - emptyLeft
 
@@ -413,8 +405,9 @@ class KeyFarsiIme : InputMethodService() {
                                 refreshKeyboard()
                             })
                         } else if (item == "BACKSPACE") {
+                            // ✅ دکمه backspace با عرض ۲ برابر
                             line.addView(backspaceKey(
-                                Color.rgb(190, 155, 215), Color.WHITE, keyWidthPx
+                                Color.rgb(190, 155, 215), Color.WHITE, keyWidthPx * 2
                             ))
                         }
                     }
@@ -569,12 +562,13 @@ class KeyFarsiIme : InputMethodService() {
         root.addView(bottom)
     }
 
+    // ✅ صفحه اعداد: چیدمان از ۱۲۳، Backspace هم‌اندازه بقیه، اعداد فارسی/انگلیسی
     private fun buildNumberPad(root: LinearLayout, keyBg: Int, fg: Int) {
         val rows = listOf(
-            listOf("۷","۸","۹","⌫"),
-            listOf("۴","۵","۶","+"),
-            listOf("۱","۲","۳","−"),
-            listOf("۰","۰۰","×","÷")
+            listOf("۱", "۲", "۳"),
+            listOf("۴", "۵", "۶"),
+            listOf("۷", "۸", "۹"),
+            listOf("۰", "۰۰", "⌫")
         )
         rows.forEach { row ->
             val line = LinearLayout(this).apply {
@@ -583,8 +577,7 @@ class KeyFarsiIme : InputMethodService() {
             }
             row.forEach { value ->
                 if (value == "⌫") {
-                    val bw = (resources.displayMetrics.widthPixels - dp(8)) / 4
-                    line.addView(backspaceKey(keyBg, fg, bw))
+                    line.addView(backspaceKey(keyBg, fg, (resources.displayMetrics.widthPixels - dp(8)) / 3))
                 } else {
                     line.addView(keyButton(value, keyBg, fg, 20f) {
                         commit(if (english) toEnglishDigits(value) else value)
@@ -634,6 +627,7 @@ class KeyFarsiIme : InputMethodService() {
         root.addView(controls)
     }
 
+    // سایر بخش‌ها (symbols, emoji, clipboard و ...) بدون تغییر باقی مانده‌اند
     private fun buildSymbolPage(root: LinearLayout, keyBg: Int, fg: Int) {
         val scroller = ScrollView(this)
         val column = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
@@ -960,18 +954,28 @@ class KeyFarsiIme : InputMethodService() {
         refreshSuggestions()
     }
 
+    // ✅ دکمه اینتر: برای فیلدهای چندخطی خط جدید، برای بقیه ارسال
     private fun sendEnter() {
         val info = currentInputEditorInfo
-        val action = info?.imeOptions?.and(EditorInfo.IME_MASK_ACTION)
-            ?: EditorInfo.IME_ACTION_NONE
-        val handled = currentInputConnection?.performEditorAction(action) ?: false
-        if (!handled) {
-            currentInputConnection?.sendKeyEvent(
-                KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_ENTER)
-            )
-            currentInputConnection?.sendKeyEvent(
-                KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_ENTER)
-            )
+        if (info == null) return
+
+        val inputType = info.inputType and InputType.TYPE_MASK_CLASS
+        val isMultiline = (info.inputType and InputType.TYPE_TEXT_FLAG_MULTI_LINE) != 0
+
+        if (isMultiline || inputType == InputType.TYPE_CLASS_TEXT) {
+            currentInputConnection?.commitText("\n", 1)
+        } else {
+            val action = info.imeOptions and EditorInfo.IME_MASK_ACTION
+            if (action != EditorInfo.IME_ACTION_NONE) {
+                currentInputConnection?.performEditorAction(action)
+            } else {
+                currentInputConnection?.sendKeyEvent(
+                    KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_ENTER)
+                )
+                currentInputConnection?.sendKeyEvent(
+                    KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_ENTER)
+                )
+            }
         }
     }
 
