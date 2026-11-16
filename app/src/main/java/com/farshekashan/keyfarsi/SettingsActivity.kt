@@ -161,14 +161,17 @@ class SettingsActivity : Activity() {
         }
         outer.addView(choose, match())
 
-        outer.addView(sectionTitle("تنظیمات فارسی (عمودی)"))
+        outer.addView(sectionTitle("تنظیمات عمومی (حالت عمودی)"))
         addNumberField(outer, "عرض کیبورد فارسی (dp)", "fa_keyboard_width", 360, 0, 1200)
         addNumberField(outer, "ارتفاع کل کیبورد فارسی (dp)", "fa_keyboard_height", 270, 150, 800)
         addNumberField(outer, "عرض دکمه‌ها (dp) - ۰ برای خودکار", "fa_key_width", 0, 0, 200)
         addNumberField(outer, "ارتفاع دکمه‌ها (dp)", "fa_key_height", 48, 30, 120)
         addNumberField(outer, "فاصله بین دکمه‌ها (dp)", "fa_key_gap", 4, 0, 20)
 
-        outer.addView(sectionTitle("تنظیمات فارسی (افقی)"))
+        // ✅ فیلد جدید: حاشیه امن (۱ تا ۵ پیکسل)
+        addNumberField(outer, "حاشیه امن (پیکسل) - برای جلوگیری از بیرون‌زدگی دکمه‌ها", "keyboard_padding", 2, 1, 5)
+
+        outer.addView(sectionTitle("تنظیمات عمومی (حالت افقی)"))
         addNumberField(outer, "عرض کیبورد در حالت افقی (dp) - ۰ برای خودکار", "keyboard_width_landscape", 0, 0, 1200)
         addNumberField(outer, "ارتفاع کیبورد در حالت افقی (dp) - ۰ برای خودکار", "keyboard_height_landscape", 0, 0, 800)
 
@@ -315,6 +318,7 @@ class SettingsActivity : Activity() {
                     .putInt("standard_key_height", 0)
                     .putInt("standard_key_gap", -1)
                     .putInt("standard_scale", 100)
+                    .putInt("keyboard_padding", 2) // ✅ بازنشانی حاشیه امن
                     .putBoolean("dark", false)
                     .putString("theme", "default")
                     .putBoolean("standard_big_keyboard", false)
