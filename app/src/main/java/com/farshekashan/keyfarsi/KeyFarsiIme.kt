@@ -201,7 +201,6 @@ class KeyFarsiIme : InputMethodService() {
         return if (id > 0) res.getDimensionPixelSize(id) else 0
     }
 
-    // ✅ محاسبه دقیق عرض و ارتفاع بر اساس تنظیمات
     private fun buildKeyboard(): View {
         val dark = prefs.getBoolean("dark", false)
         val theme = prefs.getString("theme", "default")
@@ -219,7 +218,6 @@ class KeyFarsiIme : InputMethodService() {
             background = Color.rgb(40, 40, 60); normalKey = Color.rgb(100, 100, 150); foreground = Color.WHITE; accent = Color.rgb(0, 200, 255)
         }
 
-        // ✅ خواندن عرض و ارتفاع از تنظیمات
         val requestedWidth = prefs.getInt("keyboard_width", 0)
         val requestedWidthLandscape = prefs.getInt("keyboard_width_landscape", 0)
         val requestedHeight = prefs.getInt("keyboard_height", 0)
@@ -227,14 +225,12 @@ class KeyFarsiIme : InputMethodService() {
         val screenWidth = resources.displayMetrics.widthPixels
         val screenHeight = resources.displayMetrics.heightPixels
 
-        // ✅ عرض کیبورد: اگر ۰ باشد، کل عرض صفحه
         val actualWidth = if (isLandscape) {
             if (requestedWidthLandscape > 0) dp(requestedWidthLandscape).coerceAtMost(screenWidth) else screenWidth
         } else {
             if (requestedWidth > 0) dp(requestedWidth).coerceAtMost(screenWidth) else screenWidth
         }
 
-        // ✅ ارتفاع کیبورد: اگر ۰ باشد، پیش‌فرض (عمودی: ۳۴۹dp، افقی: ۴۵٪ صفحه)
         val heightToUse = if (isLandscape) {
             if (requestedHeightLandscape > 0) dp(requestedHeightLandscape) else (screenHeight * 0.45).toInt()
         } else {
@@ -247,7 +243,6 @@ class KeyFarsiIme : InputMethodService() {
             setBackgroundColor(background)
             val navBar = getNavigationBarHeight()
             setPadding(dp(4), dp(4), dp(4), navBar + dp(4))
-            // ✅ اعمال عرض و ارتفاع به ریشه
             layoutParams = ViewGroup.LayoutParams(actualWidth, heightToUse)
         }
         keyboardRoot = root
@@ -255,7 +250,6 @@ class KeyFarsiIme : InputMethodService() {
         val content = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_HORIZONTAL
-            // ✅ عرض محتوا برابر با عرض کیبورد
             layoutParams = LinearLayout.LayoutParams(actualWidth, ViewGroup.LayoutParams.MATCH_PARENT)
         }
         root.addView(content)
@@ -391,12 +385,11 @@ class KeyFarsiIme : InputMethodService() {
         return try { JSONObject(prefs.getString("bigrams", "{}") ?: "{}") } catch (_: Exception) { JSONObject() }
     }
 
-    // ✅ بازنویسی: استفاده از actualWidth برای محاسبات
+    // ✅ اصلاح نهایی: استفاده از کل عرض کیبورد و تقسیم مساوی برای ردیف پایین
     private fun buildLetterKeyboard(root: LinearLayout, keyBg: Int, fg: Int, accent: Int, actualWidth: Int) {
         val standardBig = prefs.getBoolean("standard_big_keyboard", false)
         val rows = if (english) englishRows else persianRows
 
-        // ✅ عرض قابل استفاده = عرض کیبورد منهای حاشیه
         val usableWidthPx = actualWidth - dp(8)
 
         val prefix = if (english) "en_" else "fa_"
@@ -404,7 +397,6 @@ class KeyFarsiIme : InputMethodService() {
         val rawKeyHeight = prefs.getInt("${prefix}key_height", 0)
         val rawGap = prefs.getInt("${prefix}key_gap", 0)
 
-        // ✅ اگر مقدار تنظیمات ۰ بود، از پیش‌فرض استفاده کن
         val configuredKeyWidth = if (rawKeyWidth > 0) rawKeyWidth else DEFAULT_KEY_WIDTH
         val configuredKeyHeight = if (rawKeyHeight > 0) rawKeyHeight else DEFAULT_KEY_HEIGHT
         val configuredGap = if (rawGap > 0) rawGap else DEFAULT_KEY_GAP
@@ -418,7 +410,6 @@ class KeyFarsiIme : InputMethodService() {
             val gapPx = if (stdGap >= 0) dp(stdGap) else dp(configuredGap)
             val columns = 10
             
-            // ✅ محاسبه عرض دکمه به‌گونه‌ای که از عرض کیبورد بیرون نزند
             val maxAvailableWidth = usableWidthPx - (columns * gapPx * 2)
             val calculatedKeyWidth = if (stdKeyWidth > 0) dp(stdKeyWidth) else maxAvailableWidth / columns
             val keyWidthPx = (calculatedKeyWidth * scale).toInt().coerceIn(dp(20), maxAvailableWidth / columns)
@@ -453,17 +444,17 @@ class KeyFarsiIme : InputMethodService() {
             row3.addView(backspaceKeySized(Color.rgb(190, 155, 215), Color.WHITE, (keyWidthPx * 1.5).toInt(), keyHeightPx, gapPx))
             root.addView(row3)
 
+            // ✅ ردیف پایین استاندارد: با استفاده از وزن برای جا شدن دقیق در عرض کیبورد
             val bottom = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
-            bottom.addView(actionButton("?123", keyBg, fg) { toggleMode { numberMode = true } }, LinearLayout.LayoutParams((keyWidthPx * 1.5).toInt(), keyHeightPx).apply { setMargins(gapPx, dp(2), gapPx, dp(2)) })
-            bottom.addView(actionButton(t("key_comma"), keyBg, fg) { commit(",") }, LinearLayout.LayoutParams(keyWidthPx, keyHeightPx).apply { setMargins(gapPx, dp(2), gapPx, dp(2)) })
-            bottom.addView(actionButton(t("key_globe"), keyBg, fg) { english = !english; refreshKeyboard() }, LinearLayout.LayoutParams(keyWidthPx, keyHeightPx).apply { setMargins(gapPx, dp(2), gapPx, dp(2)) })
+            bottom.addView(actionButton("?123", keyBg, fg) { toggleMode { numberMode = true } }, LinearLayout.LayoutParams(0, keyHeightPx, 1.5f).apply { setMargins(gapPx, dp(2), gapPx, dp(2)) })
+            bottom.addView(actionButton(t("key_comma"), keyBg, fg) { commit(",") }, LinearLayout.LayoutParams(0, keyHeightPx, 1f).apply { setMargins(gapPx, dp(2), gapPx, dp(2)) })
+            bottom.addView(actionButton(t("key_globe"), keyBg, fg) { english = !english; refreshKeyboard() }, LinearLayout.LayoutParams(0, keyHeightPx, 1f).apply { setMargins(gapPx, dp(2), gapPx, dp(2)) })
             bottom.addView(keyButton(t("key_space"), keyBg, fg) { commit(" ") }, LinearLayout.LayoutParams(0, keyHeightPx, 3f).apply { setMargins(gapPx, dp(2), gapPx, dp(2)) })
-            bottom.addView(actionButton(t("key_dot"), keyBg, fg) { commit(".") }, LinearLayout.LayoutParams(keyWidthPx, keyHeightPx).apply { setMargins(gapPx, dp(2), gapPx, dp(2)) })
-            bottom.addView(actionButton(t("key_enter"), accent, Color.WHITE) { sendEnter() }, LinearLayout.LayoutParams((keyWidthPx * 1.5).toInt(), keyHeightPx).apply { setMargins(gapPx, dp(2), gapPx, dp(2)) })
+            bottom.addView(actionButton(t("key_dot"), keyBg, fg) { commit(".") }, LinearLayout.LayoutParams(0, keyHeightPx, 1f).apply { setMargins(gapPx, dp(2), gapPx, dp(2)) })
+            bottom.addView(actionButton(t("key_enter"), accent, Color.WHITE) { sendEnter() }, LinearLayout.LayoutParams(0, keyHeightPx, 1.5f).apply { setMargins(gapPx, dp(2), gapPx, dp(2)) })
             root.addView(bottom)
 
         } else {
-            // ✅ محاسبه خودکار تعداد ستون‌ها بر اساس عرض دکمه و عرض کیبورد
             val keyWidthPx = dp(configuredKeyWidth)
             val gapPx = dp(configuredGap)
             val effectiveKeyHeight = dp(configuredKeyHeight)
@@ -498,6 +489,7 @@ class KeyFarsiIme : InputMethodService() {
                 root.addView(line)
             }
 
+            // ✅ ردیف پایین (حالت عادی): با استفاده از وزن برای جا شدن دقیق در عرض کیبورد
             buildBottomRow(root, keyBg, fg)
         }
     }
@@ -573,19 +565,19 @@ class KeyFarsiIme : InputMethodService() {
         refreshSuggestions()
     }
 
+    // ✅ ردیف پایین با استفاده از وزن برای تقسیم مساوی
     private fun buildBottomRow(root: LinearLayout, keyBg: Int, fg: Int) {
         val bottom = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
-        bottom.addView(actionButton("?123", keyBg, fg) { toggleMode { numberMode = true } })
-        bottom.addView(actionButton(t("key_comma"), keyBg, fg) { commit(",") })
-        bottom.addView(actionButton(t("key_globe"), keyBg, fg) { english = !english; refreshKeyboard() })
-        if (english) bottom.addView(actionButton(t("key_shift"), keyBg, fg) { uppercase = !uppercase; refreshKeyboard() })
+        bottom.addView(actionButton("?123", keyBg, fg) { toggleMode { numberMode = true } }, LinearLayout.LayoutParams(0, keyHeight(), 1.5f).apply { setMargins(dp(gap()), dp(2), dp(gap()), dp(2)) })
+        bottom.addView(actionButton(t("key_comma"), keyBg, fg) { commit(",") }, LinearLayout.LayoutParams(0, keyHeight(), 1f).apply { setMargins(dp(gap()), dp(2), dp(gap()), dp(2)) })
+        bottom.addView(actionButton(t("key_globe"), keyBg, fg) { english = !english; refreshKeyboard() }, LinearLayout.LayoutParams(0, keyHeight(), 1f).apply { setMargins(dp(gap()), dp(2), dp(gap()), dp(2)) })
+        if (english) bottom.addView(actionButton(t("key_shift"), keyBg, fg) { uppercase = !uppercase; refreshKeyboard() }, LinearLayout.LayoutParams(0, keyHeight(), 1f).apply { setMargins(dp(gap()), dp(2), dp(gap()), dp(2)) })
         bottom.addView(keyButton(t("key_space"), keyBg, fg) { commit(" ") }, LinearLayout.LayoutParams(0, keyHeight(), 3f).apply { setMargins(dp(gap()), dp(2), dp(gap()), dp(2)) })
-        bottom.addView(actionButton(t("key_dot"), keyBg, fg) { commit(".") })
-        bottom.addView(actionButton(t("key_enter"), Color.rgb(103, 80, 164), Color.WHITE) { sendEnter() })
+        bottom.addView(actionButton(t("key_dot"), keyBg, fg) { commit(".") }, LinearLayout.LayoutParams(0, keyHeight(), 1f).apply { setMargins(dp(gap()), dp(2), dp(gap()), dp(2)) })
+        bottom.addView(actionButton(t("key_enter"), Color.rgb(103, 80, 164), Color.WHITE) { sendEnter() }, LinearLayout.LayoutParams(0, keyHeight(), 1.5f).apply { setMargins(dp(gap()), dp(2), dp(gap()), dp(2)) })
         root.addView(bottom)
     }
 
-    // ✅ صفحه اعداد با دکمه بازگشت به حروف
     private fun buildNumberPad(root: LinearLayout, keyBg: Int, fg: Int) {
         val rows = listOf(
             listOf("۱", "۲", "۳"),
@@ -614,12 +606,11 @@ class KeyFarsiIme : InputMethodService() {
         root.addView(symLine)
 
         val controls = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
-        // ✅ دکمه بازگشت به حروف (در ابتدای ردیف کنترل‌ها)
-        controls.addView(actionButton(t("mode_letters"), keyBg, fg) { numberMode = false; refreshKeyboard() })
-        controls.addView(actionButton(t("mode_symbols"), keyBg, fg) { symbolMode = true; numberMode = false; refreshKeyboard() })
-        controls.addView(actionButton(t("mode_emoji"), keyBg, fg) { emojiMode = true; numberMode = false; refreshKeyboard() })
-        controls.addView(keyButton(" ", keyBg, fg) { commit(" ") }, LinearLayout.LayoutParams(0, keyHeight(), 1f).apply { setMargins(dp(gap()), dp(2), dp(gap()), dp(2)) })
-        controls.addView(actionButton(t("key_enter"), Color.rgb(103, 80, 164), Color.WHITE) { sendEnter() })
+        controls.addView(actionButton(t("mode_letters"), keyBg, fg) { numberMode = false; refreshKeyboard() }, LinearLayout.LayoutParams(0, keyHeight(), 1.5f).apply { setMargins(dp(gap()), dp(2), dp(gap()), dp(2)) })
+        controls.addView(actionButton(t("mode_symbols"), keyBg, fg) { symbolMode = true; numberMode = false; refreshKeyboard() }, LinearLayout.LayoutParams(0, keyHeight(), 1.5f).apply { setMargins(dp(gap()), dp(2), dp(gap()), dp(2)) })
+        controls.addView(actionButton(t("mode_emoji"), keyBg, fg) { emojiMode = true; numberMode = false; refreshKeyboard() }, LinearLayout.LayoutParams(0, keyHeight(), 1.5f).apply { setMargins(dp(gap()), dp(2), dp(gap()), dp(2)) })
+        controls.addView(keyButton(" ", keyBg, fg) { commit(" ") }, LinearLayout.LayoutParams(0, keyHeight(), 2f).apply { setMargins(dp(gap()), dp(2), dp(gap()), dp(2)) })
+        controls.addView(actionButton(t("key_enter"), Color.rgb(103, 80, 164), Color.WHITE) { sendEnter() }, LinearLayout.LayoutParams(0, keyHeight(), 1.5f).apply { setMargins(dp(gap()), dp(2), dp(gap()), dp(2)) })
         root.addView(controls)
     }
 
