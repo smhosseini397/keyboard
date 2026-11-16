@@ -54,6 +54,7 @@ class KeyFarsiIme : InputMethodService() {
     private val DEFAULT_KEY_WIDTH = 34
     private val DEFAULT_KEY_HEIGHT = 48
     private val DEFAULT_KEY_GAP = 5
+    private val DEFAULT_PADDING = 2 // حاشیه امن پیش‌فرض
 
     private fun t(key: String): String {
         return when (key) {
@@ -225,10 +226,13 @@ class KeyFarsiIme : InputMethodService() {
         val screenWidth = resources.displayMetrics.widthPixels
         val screenHeight = resources.displayMetrics.heightPixels
 
+        // ✅ خواندن حاشیه امن از تنظیمات (بین ۱ تا ۵)
+        val paddingPx = dp(prefs.getInt("keyboard_padding", DEFAULT_PADDING).coerceIn(1, 5))
+
         val actualWidth = if (isLandscape) {
-            if (requestedWidthLandscape > 0) dp(requestedWidthLandscape).coerceAtMost(screenWidth) else screenWidth
+            if (requestedWidthLandscape > 0) dp(requestedWidthLandscape).coerceAtMost(screenWidth) - (paddingPx * 2) else screenWidth - (paddingPx * 2)
         } else {
-            if (requestedWidth > 0) dp(requestedWidth).coerceAtMost(screenWidth) else screenWidth
+            if (requestedWidth > 0) dp(requestedWidth).coerceAtMost(screenWidth) - (paddingPx * 2) else screenWidth - (paddingPx * 2)
         }
 
         val heightToUse = if (isLandscape) {
@@ -242,8 +246,8 @@ class KeyFarsiIme : InputMethodService() {
             gravity = Gravity.CENTER_HORIZONTAL
             setBackgroundColor(background)
             val navBar = getNavigationBarHeight()
-            setPadding(dp(4), dp(4), dp(4), navBar + dp(4))
-            layoutParams = ViewGroup.LayoutParams(actualWidth, heightToUse)
+            setPadding(paddingPx, paddingPx, paddingPx, navBar + paddingPx)
+            layoutParams = ViewGroup.LayoutParams(screenWidth, heightToUse)
         }
         keyboardRoot = root
 
@@ -269,19 +273,16 @@ class KeyFarsiIme : InputMethodService() {
         return root
     }
 
-    // ✅ دکمه تنظیمات قبل از اعداد + اصلاح متن برند
     private fun buildToolbar(root: LinearLayout, keyBg: Int, fg: Int, accent: Int) {
         val bar = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
         }
-        // ✅ کاهش وزن متن برند تا دکمه‌ها جا شوند
         bar.addView(label(t("toolbar_brand"), 11f, fg).apply { 
             setTypeface(null, Typeface.BOLD)
             gravity = Gravity.CENTER
         }, LinearLayout.LayoutParams(0, dp(34), 0.8f))
         
-        // ✅ دکمه تنظیمات قبل از اعداد
         bar.addView(actionButton(t("toolbar_settings"), keyBg, fg) {
             startActivity(Intent(this@KeyFarsiIme, SettingsActivity::class.java).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -581,8 +582,11 @@ class KeyFarsiIme : InputMethodService() {
         root.addView(bottom)
     }
 
-    // ✅ دکمه حروف اضافه شد (در ردیف کنترل‌های صفحه اعداد)
+    // ✅ اصلاح نهایی: ارتفاع دکمه‌ها در حالت افقی کمتر می‌شود تا ردیف کنترل‌ها (دکمه حروف) دیده شود
     private fun buildNumberPad(root: LinearLayout, keyBg: Int, fg: Int) {
+        // ✅ در حالت افقی ارتفاع دکمه‌ها را کمتر می‌کنیم
+        val numKeyHeight = if (isLandscape) dp(32) else keyHeight()
+
         val rows = listOf(
             listOf("۱", "۲", "۳"),
             listOf("۴", "۵", "۶"),
@@ -593,10 +597,10 @@ class KeyFarsiIme : InputMethodService() {
             val line = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
             row.forEach { value ->
                 if (value == "⌫") {
-                    line.addView(backspaceKeySized(keyBg, fg, (resources.displayMetrics.widthPixels - dp(8)) / 3, keyHeight(), dp(gap())))
+                    line.addView(backspaceKeySized(keyBg, fg, (resources.displayMetrics.widthPixels - dp(8)) / 3, numKeyHeight, dp(gap())))
                 } else {
                     val display = if (english) toEnglishDigits(value) else value
-                    line.addView(keyButton(display, keyBg, fg, 20f) { commit(if (english) toEnglishDigits(value) else value) }, LinearLayout.LayoutParams(0, keyHeight(), 1f).apply { setMargins(dp(gap()), dp(2), dp(gap()), dp(2)) })
+                    line.addView(keyButton(display, keyBg, fg, 20f) { commit(if (english) toEnglishDigits(value) else value) }, LinearLayout.LayoutParams(0, numKeyHeight, 1f).apply { setMargins(dp(gap()), dp(2), dp(gap()), dp(2)) })
                 }
             }
             root.addView(line)
@@ -605,17 +609,17 @@ class KeyFarsiIme : InputMethodService() {
         val symbolsRow = listOf("؟","%","@","×","*","(",")","!","+","_","=",".")
         val symLine = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
         symbolsRow.forEach { s ->
-            symLine.addView(keyButton(s, keyBg, fg, 16f) { commit(s) }, LinearLayout.LayoutParams(0, keyHeight(), 1f).apply { setMargins(dp(2), dp(2), dp(2), dp(2)) })
+            symLine.addView(keyButton(s, keyBg, fg, 16f) { commit(s) }, LinearLayout.LayoutParams(0, numKeyHeight, 1f).apply { setMargins(dp(2), dp(2), dp(2), dp(2)) })
         }
         root.addView(symLine)
 
         val controls = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
         // ✅ دکمه حروف در ابتدای ردیف
-        controls.addView(actionButton(t("mode_letters"), keyBg, fg) { numberMode = false; refreshKeyboard() }, LinearLayout.LayoutParams(0, keyHeight(), 1.5f).apply { setMargins(dp(gap()), dp(2), dp(gap()), dp(2)) })
-        controls.addView(actionButton(t("mode_symbols"), keyBg, fg) { symbolMode = true; numberMode = false; refreshKeyboard() }, LinearLayout.LayoutParams(0, keyHeight(), 1.5f).apply { setMargins(dp(gap()), dp(2), dp(gap()), dp(2)) })
-        controls.addView(actionButton(t("mode_emoji"), keyBg, fg) { emojiMode = true; numberMode = false; refreshKeyboard() }, LinearLayout.LayoutParams(0, keyHeight(), 1.5f).apply { setMargins(dp(gap()), dp(2), dp(gap()), dp(2)) })
-        controls.addView(keyButton(" ", keyBg, fg) { commit(" ") }, LinearLayout.LayoutParams(0, keyHeight(), 2f).apply { setMargins(dp(gap()), dp(2), dp(gap()), dp(2)) })
-        controls.addView(actionButton(t("key_enter"), Color.rgb(103, 80, 164), Color.WHITE) { sendEnter() }, LinearLayout.LayoutParams(0, keyHeight(), 1.5f).apply { setMargins(dp(gap()), dp(2), dp(gap()), dp(2)) })
+        controls.addView(actionButton(t("mode_letters"), keyBg, fg) { numberMode = false; refreshKeyboard() }, LinearLayout.LayoutParams(0, numKeyHeight, 1.5f).apply { setMargins(dp(gap()), dp(2), dp(gap()), dp(2)) })
+        controls.addView(actionButton(t("mode_symbols"), keyBg, fg) { symbolMode = true; numberMode = false; refreshKeyboard() }, LinearLayout.LayoutParams(0, numKeyHeight, 1.5f).apply { setMargins(dp(gap()), dp(2), dp(gap()), dp(2)) })
+        controls.addView(actionButton(t("mode_emoji"), keyBg, fg) { emojiMode = true; numberMode = false; refreshKeyboard() }, LinearLayout.LayoutParams(0, numKeyHeight, 1.5f).apply { setMargins(dp(gap()), dp(2), dp(gap()), dp(2)) })
+        controls.addView(keyButton(" ", keyBg, fg) { commit(" ") }, LinearLayout.LayoutParams(0, numKeyHeight, 2f).apply { setMargins(dp(gap()), dp(2), dp(gap()), dp(2)) })
+        controls.addView(actionButton(t("key_enter"), Color.rgb(103, 80, 164), Color.WHITE) { sendEnter() }, LinearLayout.LayoutParams(0, numKeyHeight, 1.5f).apply { setMargins(dp(gap()), dp(2), dp(gap()), dp(2)) })
         root.addView(controls)
     }
 
