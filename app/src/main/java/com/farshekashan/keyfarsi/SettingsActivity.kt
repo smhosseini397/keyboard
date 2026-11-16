@@ -77,15 +77,25 @@ class SettingsActivity : Activity() {
         }
         outer.addView(choose, match())
 
-        outer.addView(sectionTitle("تنظیمات اندازه"))
+        outer.addView(sectionTitle("تنظیمات اندازه (حالت عمودی)"))
 
         addNumberField(outer, "عرض کیبورد (dp)", "keyboard_width", 360, 0, 1200)
         addNumberField(outer, "ارتفاع کل کیبورد (dp)", "keyboard_height", 270, 150, 800)
-        addNumberField(outer, "ارتفاع در حالت افقی (dp) - ۰ برای خودکار", "keyboard_height_landscape", 0, 0, 800)
-        addNumberField(outer, "عرض دکمه‌ها (dp)", "key_width", 0, 0, 200)
+        addNumberField(outer, "عرض دکمه‌ها (dp) - ۰ برای خودکار", "key_width", 0, 0, 200)
         addNumberField(outer, "ارتفاع دکمه‌ها (dp)", "key_height", 48, 30, 120)
         addNumberField(outer, "فاصله بین دکمه‌ها (dp)", "key_gap", 4, 0, 20)
-        // ✅ فیلد جدید برای مقیاس کیبورد استاندارد
+
+        outer.addView(sectionTitle("تنظیمات اندازه (حالت افقی)"))
+
+        // ✅ تنظیمات عرض و ارتفاع در حالت افقی
+        addNumberField(outer, "عرض کیبورد در حالت افقی (dp) - ۰ برای خودکار", "keyboard_width_landscape", 0, 0, 1200)
+        addNumberField(outer, "ارتفاع کیبورد در حالت افقی (dp) - ۰ برای خودکار", "keyboard_height_landscape", 0, 0, 800)
+
+        outer.addView(sectionTitle("تنظیمات کیبورد استاندارد"))
+
+        // ✅ تنظیمات اختصاصی برای کیبورد استاندارد
+        addNumberField(outer, "عرض دکمه استاندارد (dp) - ۰ برای خودکار", "standard_key_width", 0, 0, 200)
+        addNumberField(outer, "ارتفاع دکمه استاندارد (dp) - ۰ برای خودکار", "standard_key_height", 0, 0, 120)
         addNumberField(outer, "مقیاس کیبورد استاندارد (٪)", "standard_scale", 100, 50, 150)
 
         outer.addView(sectionTitle("ظاهر و تم"))
@@ -145,11 +155,14 @@ class SettingsActivity : Activity() {
                 prefs.edit()
                     .putInt("keyboard_width", 360)
                     .putInt("keyboard_height", 270)
+                    .putInt("keyboard_width_landscape", 0)
                     .putInt("keyboard_height_landscape", 0)
                     .putInt("key_width", 0)
                     .putInt("key_height", 48)
                     .putInt("key_gap", 4)
-                    .putInt("standard_scale", 100) // ✅ مقیاس استاندارد
+                    .putInt("standard_key_width", 0)
+                    .putInt("standard_key_height", 0)
+                    .putInt("standard_scale", 100)
                     .putBoolean("dark", false)
                     .putString("theme", "default")
                     .putBoolean("standard_big_keyboard", false)
@@ -162,10 +175,8 @@ class SettingsActivity : Activity() {
 
         val note = TextView(this).apply {
             text = "تغییر اندازه پس از باز و بسته کردن کیبورد اعمال می‌شود.\n" +
-                "عرض دکمه ۰ = عرض خودکار (تقسیم مساوی).\n" +
-                "ارتفاع حالت افقی ۰ = خودکار (۴۵٪ ارتفاع صفحه).\n" +
-                "مقیاس استاندارد ۱۰۰٪ = اندازه پیش‌فرض. کمتر/بیشتر = کوچک/بزرگ‌تر شدن دکمه‌ها با حفظ چیدمان.\n" +
-                "برای نمایش کامل کیبورد، ارتفاع کل را کمتر از ارتفاع صفحه تنظیم کنید."
+                "مقدار ۰ در هر فیلد به معنای «خودکار» است.\n" +
+                "برای کیبورد استاندارد، اگر عرض/ارتفاع دکمه را ۰ بگذارید، به صورت خودکار محاسبه می‌شود."
             textSize = 12f
             setPadding(0, dp(12), 0, dp(8))
             setTextColor(0xFF8A8399.toInt())
