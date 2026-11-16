@@ -54,6 +54,7 @@ class KeyFarsiIme : InputMethodService() {
     private val DEFAULT_KEY_WIDTH = 34
     private val DEFAULT_KEY_HEIGHT = 48
     private val DEFAULT_KEY_GAP = 5
+    private val DEFAULT_STANDARD_SCALE = 100
 
     private fun t(key: String): String {
         return when (key) {
@@ -269,6 +270,7 @@ class KeyFarsiIme : InputMethodService() {
         return root
     }
 
+    // ✅ دکمه ایموجی از نوار ابزار حذف شد
     private fun buildToolbar(root: LinearLayout, keyBg: Int, fg: Int, accent: Int) {
         val bar = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -277,13 +279,13 @@ class KeyFarsiIme : InputMethodService() {
         bar.addView(label(t("toolbar_brand"), 13f, fg).apply { setTypeface(null, Typeface.BOLD) }, LinearLayout.LayoutParams(0, dp(34), 1f))
         bar.addView(actionButton(t("toolbar_numbers"), keyBg, fg) { toggleMode { numberMode = !numberMode } })
         bar.addView(actionButton(t("toolbar_symbols"), keyBg, fg) { toggleMode { symbolMode = !symbolMode } })
-        // دکمه تنظیمات قبل از ایموجی
+        // دکمه تنظیمات قبل از ایموجی (حذف شده)
         bar.addView(actionButton(t("toolbar_settings"), keyBg, fg) {
             startActivity(Intent(this@KeyFarsiIme, SettingsActivity::class.java).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             })
         })
-        bar.addView(actionButton(t("toolbar_emoji"), keyBg, fg) { toggleMode { emojiMode = !emojiMode } })
+        // دکمه ایموجی حذف شد
         bar.addView(actionButton(t("toolbar_clipboard"), keyBg, fg) {
             numberMode = false; symbolMode = false; emojiMode = false; clipboardMode = true; refreshKeyboard()
         })
@@ -387,13 +389,23 @@ class KeyFarsiIme : InputMethodService() {
         return try { JSONObject(prefs.getString("bigrams", "{}") ?: "{}") } catch (_: Exception) { JSONObject() }
     }
 
-    // ✅ استفاده از تنظیمات اختصاصی برای کیبورد استاندارد
+    // ✅ استفاده از تنظیمات اختصاصی برای هر زبان (فارسی/انگلیسی) و حالت استاندارد
     private fun buildLetterKeyboard(root: LinearLayout, keyBg: Int, fg: Int, accent: Int) {
         val standardBig = prefs.getBoolean("standard_big_keyboard", false)
         val rows = if (english) englishRows else persianRows
         val screenWidthPx = resources.displayMetrics.widthPixels
+        val usableWidthPx = screenWidthPx - dp(8)
+
+        // ✅ خواندن تنظیمات اختصاصی زبان
+        val prefix = if (english) "en_" else "fa_"
+        val configuredWidth = prefs.getInt("${prefix}keyboard_width", prefs.getInt("keyboard_width", DEFAULT_KEYBOARD_WIDTH))
+        val configuredHeight = prefs.getInt("${prefix}keyboard_height", prefs.getInt("keyboard_height", DEFAULT_KEYBOARD_HEIGHT))
+        val configuredKeyWidth = prefs.getInt("${prefix}key_width", prefs.getInt("key_width", DEFAULT_KEY_WIDTH))
+        val configuredKeyHeight = prefs.getInt("${prefix}key_height", prefs.getInt("key_height", DEFAULT_KEY_HEIGHT))
+        val configuredGap = prefs.getInt("${prefix}key_gap", prefs.getInt("key_gap", DEFAULT_KEY_GAP))
 
         if (standardBig) {
+            // تنظیمات اختصاصی استاندارد
             val stdWidth = prefs.getInt("standard_keyboard_width", 0)
             val stdHeight = prefs.getInt("standard_keyboard_height", 0)
             val stdKeyWidth = prefs.getInt("standard_key_width", 0)
@@ -401,11 +413,11 @@ class KeyFarsiIme : InputMethodService() {
             val stdGap = prefs.getInt("standard_key_gap", -1)
             val scale = prefs.getInt("standard_scale", 100).coerceIn(50, 150) / 100f
 
-            val usableWidthPx = if (stdWidth > 0) dp(stdWidth) else (screenWidthPx - dp(8))
+            val usableStdWidth = if (stdWidth > 0) dp(stdWidth) else usableWidthPx
             val gapPx = if (stdGap >= 0) dp(stdGap) else if (isLandscape) dp(2) else dp(6)
             val columns = 10
             
-            val baseKeyWidth = if (stdKeyWidth > 0) dp(stdKeyWidth) else ((usableWidthPx - (columns * gapPx * 2)) / columns)
+            val baseKeyWidth = if (stdKeyWidth > 0) dp(stdKeyWidth) else ((usableStdWidth - (columns * gapPx * 2)) / columns)
             val keyWidthPx = (baseKeyWidth * scale).toInt().coerceAtLeast(dp(20))
             
             val baseKeyHeight = if (stdKeyHeight > 0) dp(stdKeyHeight) else if (isLandscape) dp(40) else dp(56)
@@ -448,9 +460,8 @@ class KeyFarsiIme : InputMethodService() {
             root.addView(bottom)
 
         } else {
-            val configuredKeyWidth = prefs.getInt("key_width", DEFAULT_KEY_WIDTH)
-            val gapDp = gap()
-            val usableWidthPx = screenWidthPx - dp(8)
+            // ✅ استفاده از تنظیمات اختصاصی زبان
+            val gapDp = configuredGap
             val columns = if (configuredKeyWidth > 0) {
                 val manualKeyPx = dp(configuredKeyWidth)
                 val gapPx2 = dp(gapDp)
@@ -459,7 +470,7 @@ class KeyFarsiIme : InputMethodService() {
 
             val gapPx = dp(gapDp)
             val keyWidthPx = ((usableWidthPx - columns * gapPx * 2) / columns).coerceAtLeast(dp(24))
-            val effectiveKeyHeight = if (isLandscape) dp(36) else keyHeight()
+            val effectiveKeyHeight = if (configuredKeyHeight > 0) dp(configuredKeyHeight) else if (isLandscape) dp(36) else dp(DEFAULT_KEY_HEIGHT)
 
             val allChars = mutableListOf<Char>()
             rows.forEach { row -> row.forEach { ch -> allChars.add(ch) } }
@@ -576,7 +587,7 @@ class KeyFarsiIme : InputMethodService() {
         root.addView(bottom)
     }
 
-    // ✅ اصلاح شده: دکمه بازگشت به حروف واضح در صفحه اعداد
+    // ✅ دکمه بازگشت به حروف واضح در صفحه اعداد (عمودی و افقی)
     private fun buildNumberPad(root: LinearLayout, keyBg: Int, fg: Int) {
         val rows = listOf(
             listOf("۱", "۲", "۳"),
@@ -605,6 +616,7 @@ class KeyFarsiIme : InputMethodService() {
         root.addView(symLine)
 
         val controls = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
+        // ✅ دکمه بازگشت به حروف در ابتدای ردیف
         controls.addView(actionButton(t("mode_letters"), keyBg, fg) { numberMode = false; refreshKeyboard() })
         controls.addView(actionButton(t("mode_symbols"), keyBg, fg) { symbolMode = true; numberMode = false; refreshKeyboard() })
         controls.addView(actionButton(t("mode_emoji"), keyBg, fg) { emojiMode = true; numberMode = false; refreshKeyboard() })
