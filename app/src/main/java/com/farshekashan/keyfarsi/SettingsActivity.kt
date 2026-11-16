@@ -81,14 +81,16 @@ class SettingsActivity : Activity() {
 
         addNumberField(outer, "عرض کیبورد (dp)", "keyboard_width", 360, 0, 1200)
         addNumberField(outer, "ارتفاع کل کیبورد (dp)", "keyboard_height", 270, 150, 800)
+        // ✅ فیلد جدید برای ارتفاع در حالت افقی
+        addNumberField(outer, "ارتفاع در حالت افقی (dp) - ۰ برای خودکار", "keyboard_height_landscape", 0, 0, 800)
         addNumberField(outer, "عرض دکمه‌ها (dp)", "key_width", 0, 0, 200)
         addNumberField(outer, "ارتفاع دکمه‌ها (dp)", "key_height", 48, 30, 120)
         addNumberField(outer, "فاصله بین دکمه‌ها (dp)", "key_gap", 4, 0, 20)
 
-        outer.addView(sectionTitle("ظاهر"))
+        outer.addView(sectionTitle("ظاهر و تم"))
 
         val dark = CheckBox(this).apply {
-            text = "تم تیره"
+            text = "تم تیره (برای تم پیش‌فرض)"
             isChecked = prefs.getBoolean("dark", false)
             setOnCheckedChangeListener { _, checked ->
                 prefs.edit().putBoolean("dark", checked).apply()
@@ -96,12 +98,44 @@ class SettingsActivity : Activity() {
         }
         outer.addView(dark)
 
+        // ✅ انتخاب تم سه‌بعدی
+        val themeLabel = TextView(this).apply {
+            text = "انتخاب تم کیبورد:"
+            textSize = 14f
+            setTextColor(0xFF332B45.toInt())
+            setPadding(0, dp(12), 0, dp(4))
+        }
+        outer.addView(themeLabel)
+
+        val themes = arrayOf("default" to "پیش‌فرض", "retro" to "رترو (کیبورد قدیمی)", "neon" to "نئون", "glass" to "شیشه‌ای")
+        val spinner = Spinner(this).apply {
+            adapter = ArrayAdapter(
+                this@SettingsActivity,
+                android.R.layout.simple_spinner_dropdown_item,
+                themes.map { it.second }
+            )
+            val currentTheme = prefs.getString("theme", "default")
+            setSelection(themes.indexOfFirst { it.first == currentTheme }.coerceAtLeast(0))
+            onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+                override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                    prefs.edit().putString("theme", themes[position].first).apply()
+                }
+                override fun onNothingSelected(parent: AdapterView<*>?) {}
+            }
+        }
+        outer.addView(spinner, match())
+
         // ✅ کیبورد بزرگ استاندارد
         val standardBig = CheckBox(this).apply {
             text = "کیبورد بزرگ استاندارد (حروف سر جای استاندارد با فاصله بیشتر)"
             isChecked = prefs.getBoolean("standard_big_keyboard", false)
             setOnCheckedChangeListener { _, checked ->
                 prefs.edit().putBoolean("standard_big_keyboard", checked).apply()
+                Toast.makeText(
+                    this@SettingsActivity,
+                    "برای اعمال تغییرات، کیبورد را ببندید و دوباره باز کنید",
+                    Toast.LENGTH_SHORT
+                ).show()
             }
         }
         outer.addView(standardBig)
@@ -112,10 +146,12 @@ class SettingsActivity : Activity() {
                 prefs.edit()
                     .putInt("keyboard_width", 360)
                     .putInt("keyboard_height", 270)
+                    .putInt("keyboard_height_landscape", 0)
                     .putInt("key_width", 0)
                     .putInt("key_height", 48)
                     .putInt("key_gap", 4)
                     .putBoolean("dark", false)
+                    .putString("theme", "default")
                     .putBoolean("standard_big_keyboard", false)
                     .apply()
                 Toast.makeText(this@SettingsActivity, "تنظیمات بازنشانی شد", Toast.LENGTH_SHORT).show()
@@ -127,6 +163,7 @@ class SettingsActivity : Activity() {
         val note = TextView(this).apply {
             text = "تغییر اندازه پس از باز و بسته کردن کیبورد اعمال می‌شود.\n" +
                 "عرض دکمه ۰ = عرض خودکار (تقسیم مساوی).\n" +
+                "ارتفاع حالت افقی ۰ = خودکار (۴۵٪ ارتفاع صفحه).\n" +
                 "برای نمایش کامل کیبورد، ارتفاع کل را کمتر از ارتفاع صفحه تنظیم کنید."
             textSize = 12f
             setPadding(0, dp(12), 0, dp(8))
