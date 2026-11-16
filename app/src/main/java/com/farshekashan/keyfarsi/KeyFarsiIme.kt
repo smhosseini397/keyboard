@@ -55,7 +55,7 @@ class KeyFarsiIme : InputMethodService() {
     private val DEFAULT_KEY_WIDTH = 34
     private val DEFAULT_KEY_HEIGHT = 48
     private val DEFAULT_KEY_GAP = 5
-    private val DEFAULT_STANDARD_SCALE = 100 // درصد
+    private val DEFAULT_STANDARD_SCALE = 100
 
     private fun t(key: String): String {
         return when (key) {
@@ -204,6 +204,7 @@ class KeyFarsiIme : InputMethodService() {
         return if (id > 0) res.getDimensionPixelSize(id) else 0
     }
 
+    // ✅ اصلاح نهایی برای حالت افقی: عرض و ارتفاع
     private fun buildKeyboard(): View {
         val dark = prefs.getBoolean("dark", false)
         val theme = prefs.getString("theme", "default")
@@ -226,12 +227,10 @@ class KeyFarsiIme : InputMethodService() {
         val screenWidth = resources.displayMetrics.widthPixels
         val screenHeight = resources.displayMetrics.heightPixels
 
-        // ✅ عرض در حالت افقی خودکار (کل عرض صفحه) و در حالت عمودی قابل تنظیم
-        val actualWidth = if (isLandscape) ViewGroup.LayoutParams.MATCH_PARENT 
-                          else if (requestedWidth > 0) dp(requestedWidth).coerceAtMost(screenWidth) 
-                          else ViewGroup.LayoutParams.MATCH_PARENT
+        // ✅ عرض در حالت افقی: همیشه کل عرض صفحه
+        val actualWidth = if (isLandscape) screenWidth else if (requestedWidth > 0) dp(requestedWidth).coerceAtMost(screenWidth) else screenWidth
 
-        // ✅ ارتفاع در حالت افقی: اولویت با تنظیمات، در غیر این صورت ۴۵٪ ارتفاع صفحه
+        // ✅ ارتفاع در حالت افقی: اولویت با تنظیمات، در غیر این صورت 45٪ ارتفاع صفحه
         val landscapeHeightPref = prefs.getInt("keyboard_height_landscape", 0)
         val heightToUse = if (isLandscape) {
             if (landscapeHeightPref > 0) dp(landscapeHeightPref)
@@ -272,7 +271,7 @@ class KeyFarsiIme : InputMethodService() {
         return root
     }
 
-    // ✅ دکمه تنظیمات به آخرین دکمه منتقل شد
+    // ✅ دکمه تنظیمات بعد از ایموجی قرار گرفت
     private fun buildToolbar(root: LinearLayout, keyBg: Int, fg: Int, accent: Int) {
         val bar = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -282,17 +281,17 @@ class KeyFarsiIme : InputMethodService() {
         bar.addView(actionButton(t("toolbar_numbers"), keyBg, fg) { toggleMode { numberMode = !numberMode } })
         bar.addView(actionButton(t("toolbar_symbols"), keyBg, fg) { toggleMode { symbolMode = !symbolMode } })
         bar.addView(actionButton(t("toolbar_emoji"), keyBg, fg) { toggleMode { emojiMode = !emojiMode } })
+        // ✅ دکمه تنظیمات بعد از ایموجی
+        bar.addView(actionButton(t("toolbar_settings"), keyBg, fg) {
+            startActivity(Intent(this@KeyFarsiIme, SettingsActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            })
+        })
         bar.addView(actionButton(t("toolbar_clipboard"), keyBg, fg) {
             numberMode = false; symbolMode = false; emojiMode = false; clipboardMode = true; refreshKeyboard()
         })
         bar.addView(actionButton(if (english) t("toolbar_lang_fa") else t("toolbar_lang_en"), accent, Color.WHITE) {
             english = !english; uppercase = false; refreshKeyboard()
-        })
-        // ✅ دکمه تنظیمات در انتها
-        bar.addView(actionButton(t("toolbar_settings"), keyBg, fg) {
-            startActivity(Intent(this@KeyFarsiIme, SettingsActivity::class.java).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            })
         })
         root.addView(bar)
     }
@@ -391,6 +390,7 @@ class KeyFarsiIme : InputMethodService() {
         return try { JSONObject(prefs.getString("bigrams", "{}") ?: "{}") } catch (_: Exception) { JSONObject() }
     }
 
+    // ✅ محاسبه عرض دکمه‌ها در حالت افقی با در نظر گرفتن عرض صفحه
     private fun buildLetterKeyboard(root: LinearLayout, keyBg: Int, fg: Int, accent: Int) {
         val standardBig = prefs.getBoolean("standard_big_keyboard", false)
         val rows = if (english) englishRows else persianRows
@@ -399,9 +399,9 @@ class KeyFarsiIme : InputMethodService() {
 
         if (standardBig) {
             val scale = prefs.getInt("standard_scale", DEFAULT_STANDARD_SCALE).coerceIn(50, 150) / 100f
-            val gapPx = if (isLandscape) dp(3) else dp(6)
+            val gapPx = if (isLandscape) dp(2) else dp(6)
             val columns = 10
-            // ✅ محاسبه عرض به‌گونه‌ای که با اسکیل هماهنگ باشد و از کادر بیرون نزند
+            // ✅ محاسبه عرض دکمه در حالت افقی و عمودی
             val baseKeyWidth = (usableWidthPx - (columns * gapPx * 2)) / columns
             val keyWidthPx = (baseKeyWidth * scale).toInt().coerceAtLeast(dp(20))
             val keyHeightPx = if (isLandscape) (dp(40) * scale).toInt().coerceAtLeast(dp(24)) else (dp(56) * scale).toInt().coerceAtLeast(dp(32))
@@ -598,7 +598,6 @@ class KeyFarsiIme : InputMethodService() {
         root.addView(symLine)
 
         val controls = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
-        // ✅ دکمه بازگشت به حروف (در حالت افقی هم اضافه شد)
         controls.addView(actionButton(t("mode_letters"), keyBg, fg) { numberMode = false; refreshKeyboard() })
         controls.addView(actionButton(t("mode_symbols"), keyBg, fg) { symbolMode = true; numberMode = false; refreshKeyboard() })
         controls.addView(actionButton(t("mode_emoji"), keyBg, fg) { emojiMode = true; numberMode = false; refreshKeyboard() })
@@ -607,7 +606,6 @@ class KeyFarsiIme : InputMethodService() {
         root.addView(controls)
     }
 
-    // ✅ ارتفاع محدود برای نمادها با اسکرول
     private fun buildSymbolPage(root: LinearLayout, keyBg: Int, fg: Int) {
         val scroller = ScrollView(this)
         val column = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
@@ -619,7 +617,6 @@ class KeyFarsiIme : InputMethodService() {
             column.addView(line)
         }
         scroller.addView(column)
-        // ✅ ارتفاع محدود به 50٪ صفحه
         val symbolHeight = if (isLandscape) (resources.displayMetrics.heightPixels * 0.5).toInt() else dp(260)
         root.addView(scroller, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, symbolHeight))
 
@@ -630,7 +627,6 @@ class KeyFarsiIme : InputMethodService() {
         root.addView(controls)
     }
 
-    // ✅ ارتفاع محدود برای ایموجی‌ها با اسکرول
     private fun buildEmojiPage(root: LinearLayout, keyBg: Int, fg: Int) {
         val categories = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
         emojiCategories.forEachIndexed { index, category ->
@@ -650,7 +646,6 @@ class KeyFarsiIme : InputMethodService() {
             column.addView(line)
         }
         scroller.addView(column)
-        // ✅ ارتفاع محدود به 50٪ صفحه
         val emojiHeight = if (isLandscape) (resources.displayMetrics.heightPixels * 0.5).toInt() else dp(260)
         root.addView(scroller, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, emojiHeight))
 
@@ -825,7 +820,7 @@ class KeyFarsiIme : InputMethodService() {
         return inputClass == InputType.TYPE_CLASS_NUMBER || inputClass == InputType.TYPE_CLASS_PHONE
     }
 
-    // ✅ اصلاح مشکل ۱: اولویت‌دهی به IME_ACTION_SEARCH و GO
+    // ✅ اصلاح نهایی دکمه اینتر: اولویت به IME_ACTION_SEARCH
     private fun sendEnter() {
         val info = currentInputEditorInfo ?: return
         val ic = currentInputConnection ?: return
@@ -837,13 +832,26 @@ class KeyFarsiIme : InputMethodService() {
             return
         }
         
+        // ✅ اگر اکشن SEARCH تعریف شده بود، اولویت را به آن می‌دهیم
         val action = info.imeOptions and EditorInfo.IME_MASK_ACTION
-        if (action != EditorInfo.IME_ACTION_NONE && action != EditorInfo.IME_ACTION_UNSPECIFIED) {
-            ic.performEditorAction(action)
+        if (action == EditorInfo.IME_ACTION_SEARCH) {
+            ic.performEditorAction(EditorInfo.IME_ACTION_SEARCH)
             return
         }
         
-        // ✅ اگر اکشن مشخص نبود، ابتدا SEARCH و در نهایت GO را ارسال می‌کنیم
+        // ✅ اگر اکشن GO تعریف شده بود
+        if (action == EditorInfo.IME_ACTION_GO) {
+            ic.performEditorAction(EditorInfo.IME_ACTION_GO)
+            return
+        }
+        
+        // ✅ اگر اکشن SEND تعریف شده بود
+        if (action == EditorInfo.IME_ACTION_SEND) {
+            ic.performEditorAction(EditorInfo.IME_ACTION_SEND)
+            return
+        }
+        
+        // ✅ اگر اکشن NONE یا UNSPECIFIED بود، از SEARCH استفاده می‌کنیم
         ic.performEditorAction(EditorInfo.IME_ACTION_SEARCH)
     }
 
