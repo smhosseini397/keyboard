@@ -36,7 +36,6 @@ class KeyFarsiIme : InputMethodService() {
     private var uppercase = false
     private var emojiCategory = 0
 
-    // برای حالت افقی
     private var isLandscape = false
 
     private var suggestionRow: LinearLayout? = null
@@ -56,6 +55,7 @@ class KeyFarsiIme : InputMethodService() {
     private val DEFAULT_KEY_WIDTH = 34
     private val DEFAULT_KEY_HEIGHT = 48
     private val DEFAULT_KEY_GAP = 5
+    private val DEFAULT_STANDARD_SCALE = 100 // درصد
 
     private fun t(key: String): String {
         return when (key) {
@@ -181,23 +181,15 @@ class KeyFarsiIme : InputMethodService() {
         return buildKeyboard()
     }
 
-    // ✅ بهینه‌سازی برای حالت افقی
     override fun onComputeInsets(outInsets: Insets) {
         super.onComputeInsets(outInsets)
         if (!isInputViewShown) return
         
-        if (isLandscape) {
-            // در حالت افقی ارتفاع کمتر می‌شود تا صفحه بسته نشود
-            outInsets.contentTopInsets = outInsets.visibleTopInsets
-            outInsets.touchableInsets = Insets.TOUCHABLE_INSETS_REGION
-            outInsets.touchableRegion.set(0, 0, resources.displayMetrics.widthPixels, (keyboardRoot?.height ?: 0) - getNavigationBarHeight())
-        } else {
-            val navBarHeight = getNavigationBarHeight()
-            val keyboardHeight = keyboardRoot?.height ?: 0
-            outInsets.contentTopInsets = outInsets.visibleTopInsets
-            outInsets.touchableInsets = Insets.TOUCHABLE_INSETS_REGION
-            outInsets.touchableRegion.set(0, 0, resources.displayMetrics.widthPixels, (keyboardHeight - navBarHeight).coerceAtLeast(0))
-        }
+        val navBarHeight = getNavigationBarHeight()
+        val keyboardHeight = keyboardRoot?.height ?: 0
+        outInsets.contentTopInsets = outInsets.visibleTopInsets
+        outInsets.touchableInsets = Insets.TOUCHABLE_INSETS_REGION
+        outInsets.touchableRegion.set(0, 0, resources.displayMetrics.widthPixels, (keyboardHeight - navBarHeight).coerceAtLeast(0))
     }
 
     override fun onConfigurationChanged(newConfig: Configuration) {
@@ -212,7 +204,6 @@ class KeyFarsiIme : InputMethodService() {
         return if (id > 0) res.getDimensionPixelSize(id) else 0
     }
 
-    // ✅ طراحی مجدد کیبورد برای حالت افقی و عمودی
     private fun buildKeyboard(): View {
         val dark = prefs.getBoolean("dark", false)
         val theme = prefs.getString("theme", "default")
@@ -222,22 +213,12 @@ class KeyFarsiIme : InputMethodService() {
         var foreground = if (dark) Color.WHITE else Color.rgb(38, 34, 47)
         var accent = Color.rgb(103, 80, 164)
 
-        // ✅ تم‌های سه‌بعدی
         if (theme == "retro") {
-            background = Color.rgb(50, 50, 50)
-            normalKey = Color.rgb(100, 100, 100)
-            foreground = Color.WHITE
-            accent = Color.rgb(200, 100, 50)
+            background = Color.rgb(50, 50, 50); normalKey = Color.rgb(100, 100, 100); foreground = Color.WHITE; accent = Color.rgb(200, 100, 50)
         } else if (theme == "neon") {
-            background = Color.rgb(0, 0, 0)
-            normalKey = Color.rgb(30, 30, 30)
-            foreground = Color.rgb(0, 255, 0)
-            accent = Color.rgb(255, 0, 255)
+            background = Color.rgb(0, 0, 0); normalKey = Color.rgb(30, 30, 30); foreground = Color.rgb(0, 255, 0); accent = Color.rgb(255, 0, 255)
         } else if (theme == "glass") {
-            background = Color.rgb(40, 40, 60)
-            normalKey = Color.rgb(100, 100, 150)
-            foreground = Color.WHITE
-            accent = Color.rgb(0, 200, 255)
+            background = Color.rgb(40, 40, 60); normalKey = Color.rgb(100, 100, 150); foreground = Color.WHITE; accent = Color.rgb(0, 200, 255)
         }
 
         val requestedWidth = prefs.getInt("keyboard_width", DEFAULT_KEYBOARD_WIDTH)
@@ -245,13 +226,19 @@ class KeyFarsiIme : InputMethodService() {
         val screenWidth = resources.displayMetrics.widthPixels
         val screenHeight = resources.displayMetrics.heightPixels
 
-        // ✅ در حالت افقی عرض به حداکثر می‌رسد
+        // ✅ عرض در حالت افقی خودکار (کل عرض صفحه) و در حالت عمودی قابل تنظیم
         val actualWidth = if (isLandscape) ViewGroup.LayoutParams.MATCH_PARENT 
                           else if (requestedWidth > 0) dp(requestedWidth).coerceAtMost(screenWidth) 
                           else ViewGroup.LayoutParams.MATCH_PARENT
 
-        // ✅ در حالت افقی ارتفاع کمتر می‌شود
-        val heightToUse = if (isLandscape) (screenHeight * 0.5).toInt() else dp(requestedHeight)
+        // ✅ ارتفاع در حالت افقی: اولویت با تنظیمات، در غیر این صورت ۴۵٪ ارتفاع صفحه
+        val landscapeHeightPref = prefs.getInt("keyboard_height_landscape", 0)
+        val heightToUse = if (isLandscape) {
+            if (landscapeHeightPref > 0) dp(landscapeHeightPref)
+            else (screenHeight * 0.45).toInt()
+        } else {
+            dp(requestedHeight)
+        }
 
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -285,7 +272,7 @@ class KeyFarsiIme : InputMethodService() {
         return root
     }
 
-    // ✅ افزودن دکمه تنظیمات به نوار ابزار
+    // ✅ دکمه تنظیمات به آخرین دکمه منتقل شد
     private fun buildToolbar(root: LinearLayout, keyBg: Int, fg: Int, accent: Int) {
         val bar = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -298,14 +285,14 @@ class KeyFarsiIme : InputMethodService() {
         bar.addView(actionButton(t("toolbar_clipboard"), keyBg, fg) {
             numberMode = false; symbolMode = false; emojiMode = false; clipboardMode = true; refreshKeyboard()
         })
-        // ✅ دکمه تنظیمات
+        bar.addView(actionButton(if (english) t("toolbar_lang_fa") else t("toolbar_lang_en"), accent, Color.WHITE) {
+            english = !english; uppercase = false; refreshKeyboard()
+        })
+        // ✅ دکمه تنظیمات در انتها
         bar.addView(actionButton(t("toolbar_settings"), keyBg, fg) {
             startActivity(Intent(this@KeyFarsiIme, SettingsActivity::class.java).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             })
-        })
-        bar.addView(actionButton(if (english) t("toolbar_lang_fa") else t("toolbar_lang_en"), accent, Color.WHITE) {
-            english = !english; uppercase = false; refreshKeyboard()
         })
         root.addView(bar)
     }
@@ -327,7 +314,6 @@ class KeyFarsiIme : InputMethodService() {
         refreshSuggestions(keyBg, fg)
     }
 
-    // ✅ اصلاح پیشنهادات (ترکیب Bigram و تکمیل کلمه)
     private fun refreshSuggestions(keyBg: Int? = null, fg: Int? = null) {
         val row = suggestionRow ?: return
         row.removeAllViews()
@@ -405,7 +391,6 @@ class KeyFarsiIme : InputMethodService() {
         return try { JSONObject(prefs.getString("bigrams", "{}") ?: "{}") } catch (_: Exception) { JSONObject() }
     }
 
-    // ✅ اصلاح مشکل ۴: قرار دادن بک‌اسپیس در کنار ردیف کم‌تراکم
     private fun buildLetterKeyboard(root: LinearLayout, keyBg: Int, fg: Int, accent: Int) {
         val standardBig = prefs.getBoolean("standard_big_keyboard", false)
         val rows = if (english) englishRows else persianRows
@@ -413,11 +398,13 @@ class KeyFarsiIme : InputMethodService() {
         val usableWidthPx = screenWidthPx - dp(8)
 
         if (standardBig) {
-            // ✅ چیدمان استاندارد (در حالت افقی نیز بهینه‌تر می‌شود)
-            val gapPx = if (isLandscape) dp(4) else dp(6)
-            val columns = if (isLandscape) 10 else 10
-            val keyWidthPx = ((usableWidthPx - (columns * gapPx * 2)) / columns).coerceAtLeast(dp(24))
-            val keyHeightPx = if (isLandscape) dp(40) else dp(56)
+            val scale = prefs.getInt("standard_scale", DEFAULT_STANDARD_SCALE).coerceIn(50, 150) / 100f
+            val gapPx = if (isLandscape) dp(3) else dp(6)
+            val columns = 10
+            // ✅ محاسبه عرض به‌گونه‌ای که با اسکیل هماهنگ باشد و از کادر بیرون نزند
+            val baseKeyWidth = (usableWidthPx - (columns * gapPx * 2)) / columns
+            val keyWidthPx = (baseKeyWidth * scale).toInt().coerceAtLeast(dp(20))
+            val keyHeightPx = if (isLandscape) (dp(40) * scale).toInt().coerceAtLeast(dp(24)) else (dp(56) * scale).toInt().coerceAtLeast(dp(32))
 
             addStandardRow(root, rows[0], columns, keyWidthPx, keyHeightPx, gapPx, keyBg, fg)
             addStandardRow(root, rows[1], columns, keyWidthPx, keyHeightPx, gapPx, keyBg, fg)
@@ -431,9 +418,9 @@ class KeyFarsiIme : InputMethodService() {
             if (english) {
                 row3.addView(actionButton(t("key_shift"), Color.rgb(190, 155, 215), Color.WHITE) {
                     uppercase = !uppercase; refreshKeyboard()
-                }, LinearLayout.LayoutParams(keyWidthPx * 2, keyHeightPx).apply { setMargins(gapPx, dp(2), gapPx, dp(2)) })
+                }, LinearLayout.LayoutParams((keyWidthPx * 1.5).toInt(), keyHeightPx).apply { setMargins(gapPx, dp(2), gapPx, dp(2)) })
             } else {
-                row3.addView(View(this).apply { layoutParams = LinearLayout.LayoutParams(keyWidthPx * 2, keyHeightPx) })
+                row3.addView(View(this).apply { layoutParams = LinearLayout.LayoutParams((keyWidthPx * 1.5).toInt(), keyHeightPx) })
             }
 
             repeat(emptyLeft) { row3.addView(View(this).apply { layoutParams = LinearLayout.LayoutParams(keyWidthPx, keyHeightPx) }) }
@@ -443,21 +430,19 @@ class KeyFarsiIme : InputMethodService() {
             }
             repeat(emptyRight) { row3.addView(View(this).apply { layoutParams = LinearLayout.LayoutParams(keyWidthPx, keyHeightPx) }) }
             
-            // ✅ دکمه بک‌اسپیس
-            row3.addView(backspaceKeySized(Color.rgb(190, 155, 215), Color.WHITE, keyWidthPx * 2, keyHeightPx, gapPx))
+            row3.addView(backspaceKeySized(Color.rgb(190, 155, 215), Color.WHITE, (keyWidthPx * 1.5).toInt(), keyHeightPx, gapPx))
             root.addView(row3)
 
             val bottom = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
-            bottom.addView(actionButton("?123", keyBg, fg) { toggleMode { numberMode = true } }, LinearLayout.LayoutParams(keyWidthPx * 1.5.toInt(), keyHeightPx).apply { setMargins(gapPx, dp(2), gapPx, dp(2)) })
+            bottom.addView(actionButton("?123", keyBg, fg) { toggleMode { numberMode = true } }, LinearLayout.LayoutParams((keyWidthPx * 1.5).toInt(), keyHeightPx).apply { setMargins(gapPx, dp(2), gapPx, dp(2)) })
             bottom.addView(actionButton(t("key_comma"), keyBg, fg) { commit(",") }, LinearLayout.LayoutParams(keyWidthPx, keyHeightPx).apply { setMargins(gapPx, dp(2), gapPx, dp(2)) })
             bottom.addView(actionButton(t("key_globe"), keyBg, fg) { english = !english; refreshKeyboard() }, LinearLayout.LayoutParams(keyWidthPx, keyHeightPx).apply { setMargins(gapPx, dp(2), gapPx, dp(2)) })
             bottom.addView(keyButton(t("key_space"), keyBg, fg) { commit(" ") }, LinearLayout.LayoutParams(0, keyHeightPx, 3f).apply { setMargins(gapPx, dp(2), gapPx, dp(2)) })
             bottom.addView(actionButton(t("key_dot"), keyBg, fg) { commit(".") }, LinearLayout.LayoutParams(keyWidthPx, keyHeightPx).apply { setMargins(gapPx, dp(2), gapPx, dp(2)) })
-            bottom.addView(actionButton(t("key_enter"), accent, Color.WHITE) { sendEnter() }, LinearLayout.LayoutParams(keyWidthPx * 1.5.toInt(), keyHeightPx).apply { setMargins(gapPx, dp(2), gapPx, dp(2)) })
+            bottom.addView(actionButton(t("key_enter"), accent, Color.WHITE) { sendEnter() }, LinearLayout.LayoutParams((keyWidthPx * 1.5).toInt(), keyHeightPx).apply { setMargins(gapPx, dp(2), gapPx, dp(2)) })
             root.addView(bottom)
 
         } else {
-            // ✅ چیدمان عادی با بک‌اسپیس کنار ردیف کم‌تراکم
             val configuredKeyWidth = prefs.getInt("key_width", DEFAULT_KEY_WIDTH)
             val gapDp = gap()
             val columns = if (configuredKeyWidth > 0) {
@@ -480,14 +465,12 @@ class KeyFarsiIme : InputMethodService() {
                 val emptyLeft = emptyCount / 2
                 val emptyRight = emptyCount - emptyLeft
 
-                // ✅ در ردیف آخر، بک‌اسپیس را سمت راست اضافه می‌کنیم
-                if (index == chunks.lastIndex && !standardBig) {
+                if (index == chunks.lastIndex) {
                     repeat(emptyLeft) { line.addView(emptyFixedKeySized(keyWidthPx, effectiveKeyHeight, gapPx)) }
                     chunk.forEach { item ->
                         val v = if (english && uppercase) item.uppercaseChar().toString() else item.toString()
                         line.addView(letterKeySized(v, keyBg, fg, keyWidthPx, effectiveKeyHeight, gapPx) { commit(v) })
                     }
-                    // ✅ بک‌اسپیس در سمت راست
                     line.addView(backspaceKeySized(Color.rgb(190, 155, 215), Color.WHITE, keyWidthPx * 2, effectiveKeyHeight, gapPx))
                 } else {
                     repeat(emptyLeft) { line.addView(emptyFixedKeySized(keyWidthPx, effectiveKeyHeight, gapPx)) }
@@ -504,7 +487,6 @@ class KeyFarsiIme : InputMethodService() {
         }
     }
 
-    // ✅ اصلاح مشکل ۶: تنظیم عرض دکمه‌ها در حالت استاندارد
     private fun addStandardRow(root: LinearLayout, rowStr: String, columns: Int, keyWidthPx: Int, keyHeightPx: Int, gapPx: Int, keyBg: Int, fg: Int) {
         val line = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
         val chars = rowStr.toList()
@@ -616,6 +598,7 @@ class KeyFarsiIme : InputMethodService() {
         root.addView(symLine)
 
         val controls = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
+        // ✅ دکمه بازگشت به حروف (در حالت افقی هم اضافه شد)
         controls.addView(actionButton(t("mode_letters"), keyBg, fg) { numberMode = false; refreshKeyboard() })
         controls.addView(actionButton(t("mode_symbols"), keyBg, fg) { symbolMode = true; numberMode = false; refreshKeyboard() })
         controls.addView(actionButton(t("mode_emoji"), keyBg, fg) { emojiMode = true; numberMode = false; refreshKeyboard() })
@@ -624,6 +607,7 @@ class KeyFarsiIme : InputMethodService() {
         root.addView(controls)
     }
 
+    // ✅ ارتفاع محدود برای نمادها با اسکرول
     private fun buildSymbolPage(root: LinearLayout, keyBg: Int, fg: Int) {
         val scroller = ScrollView(this)
         val column = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
@@ -635,7 +619,9 @@ class KeyFarsiIme : InputMethodService() {
             column.addView(line)
         }
         scroller.addView(column)
-        root.addView(scroller, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
+        // ✅ ارتفاع محدود به 50٪ صفحه
+        val symbolHeight = if (isLandscape) (resources.displayMetrics.heightPixels * 0.5).toInt() else dp(260)
+        root.addView(scroller, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, symbolHeight))
 
         val controls = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
         controls.addView(actionButton(t("mode_numbers"), keyBg, fg) { symbolMode = false; numberMode = true; refreshKeyboard() })
@@ -644,6 +630,7 @@ class KeyFarsiIme : InputMethodService() {
         root.addView(controls)
     }
 
+    // ✅ ارتفاع محدود برای ایموجی‌ها با اسکرول
     private fun buildEmojiPage(root: LinearLayout, keyBg: Int, fg: Int) {
         val categories = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
         emojiCategories.forEachIndexed { index, category ->
@@ -653,13 +640,20 @@ class KeyFarsiIme : InputMethodService() {
         root.addView(categoryScroll)
 
         val emojis = emojiCategories[emojiCategory].second
+        val scroller = ScrollView(this)
+        val column = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         emojis.chunked(8).forEach { row ->
             val line = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
             row.forEach { emoji ->
                 line.addView(keyButton(emoji, keyBg, fg, 22f) { commit(emoji) }, LinearLayout.LayoutParams(0, keyHeight(), 1f).apply { setMargins(dp(2), dp(2), dp(2), dp(2)) })
             }
-            root.addView(line)
+            column.addView(line)
         }
+        scroller.addView(column)
+        // ✅ ارتفاع محدود به 50٪ صفحه
+        val emojiHeight = if (isLandscape) (resources.displayMetrics.heightPixels * 0.5).toInt() else dp(260)
+        root.addView(scroller, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, emojiHeight))
+
         root.addView(actionButton(t("mode_back_to_letters"), Color.rgb(103, 80, 164), Color.WHITE) { emojiMode = false; refreshKeyboard() })
     }
 
@@ -803,7 +797,6 @@ class KeyFarsiIme : InputMethodService() {
         setInputView(buildKeyboard())
     }
 
-    // ✅ اصلاح مشکل ۸: اضافه کردن خودکار فاصله بعد از عدد
     private fun commit(value: String) {
         val currentWord = getCurrentWord()
         val lastWord = getLastCompletedWord()
@@ -816,7 +809,6 @@ class KeyFarsiIme : InputMethodService() {
             }
         }
 
-        // ✅ اگر کاراکتر قبلی یک عدد است و کاراکتر فعلی یک حرف است، خودکار فاصله بگذار
         if (beforeCursor.isNotEmpty() && beforeCursor.last().isDigit() && value.firstOrNull()?.isLetter() == true) {
             currentInputConnection?.commitText(" ", 1)
         }
@@ -833,7 +825,7 @@ class KeyFarsiIme : InputMethodService() {
         return inputClass == InputType.TYPE_CLASS_NUMBER || inputClass == InputType.TYPE_CLASS_PHONE
     }
 
-    // ✅ اصلاح مشکل ۳: رفتار اینتر در فیلدهای سرچ
+    // ✅ اصلاح مشکل ۱: اولویت‌دهی به IME_ACTION_SEARCH و GO
     private fun sendEnter() {
         val info = currentInputEditorInfo ?: return
         val ic = currentInputConnection ?: return
@@ -851,9 +843,8 @@ class KeyFarsiIme : InputMethodService() {
             return
         }
         
-        // ✅ اگر اکشن مشخص نشده بود، از "GO" استفاده می‌کنیم که در جستجوها کار می‌کند
-        val defaultAction = EditorInfo.IME_ACTION_GO
-        ic.performEditorAction(defaultAction)
+        // ✅ اگر اکشن مشخص نبود، ابتدا SEARCH و در نهایت GO را ارسال می‌کنیم
+        ic.performEditorAction(EditorInfo.IME_ACTION_SEARCH)
     }
 
     private fun getCurrentWord(): String {
