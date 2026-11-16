@@ -81,11 +81,12 @@ class SettingsActivity : Activity() {
 
         addNumberField(outer, "عرض کیبورد (dp)", "keyboard_width", 360, 0, 1200)
         addNumberField(outer, "ارتفاع کل کیبورد (dp)", "keyboard_height", 270, 150, 800)
-        // ✅ فیلد جدید برای ارتفاع در حالت افقی
         addNumberField(outer, "ارتفاع در حالت افقی (dp) - ۰ برای خودکار", "keyboard_height_landscape", 0, 0, 800)
         addNumberField(outer, "عرض دکمه‌ها (dp)", "key_width", 0, 0, 200)
         addNumberField(outer, "ارتفاع دکمه‌ها (dp)", "key_height", 48, 30, 120)
         addNumberField(outer, "فاصله بین دکمه‌ها (dp)", "key_gap", 4, 0, 20)
+        // ✅ فیلد جدید برای مقیاس کیبورد استاندارد
+        addNumberField(outer, "مقیاس کیبورد استاندارد (٪)", "standard_scale", 100, 50, 150)
 
         outer.addView(sectionTitle("ظاهر و تم"))
 
@@ -98,7 +99,6 @@ class SettingsActivity : Activity() {
         }
         outer.addView(dark)
 
-        // ✅ انتخاب تم سه‌بعدی
         val themeLabel = TextView(this).apply {
             text = "انتخاب تم کیبورد:"
             textSize = 14f
@@ -125,7 +125,6 @@ class SettingsActivity : Activity() {
         }
         outer.addView(spinner, match())
 
-        // ✅ کیبورد بزرگ استاندارد
         val standardBig = CheckBox(this).apply {
             text = "کیبورد بزرگ استاندارد (حروف سر جای استاندارد با فاصله بیشتر)"
             isChecked = prefs.getBoolean("standard_big_keyboard", false)
@@ -150,6 +149,7 @@ class SettingsActivity : Activity() {
                     .putInt("key_width", 0)
                     .putInt("key_height", 48)
                     .putInt("key_gap", 4)
+                    .putInt("standard_scale", 100) // ✅ مقیاس استاندارد
                     .putBoolean("dark", false)
                     .putString("theme", "default")
                     .putBoolean("standard_big_keyboard", false)
@@ -164,6 +164,7 @@ class SettingsActivity : Activity() {
             text = "تغییر اندازه پس از باز و بسته کردن کیبورد اعمال می‌شود.\n" +
                 "عرض دکمه ۰ = عرض خودکار (تقسیم مساوی).\n" +
                 "ارتفاع حالت افقی ۰ = خودکار (۴۵٪ ارتفاع صفحه).\n" +
+                "مقیاس استاندارد ۱۰۰٪ = اندازه پیش‌فرض. کمتر/بیشتر = کوچک/بزرگ‌تر شدن دکمه‌ها با حفظ چیدمان.\n" +
                 "برای نمایش کامل کیبورد، ارتفاع کل را کمتر از ارتفاع صفحه تنظیم کنید."
             textSize = 12f
             setPadding(0, dp(12), 0, dp(8))
