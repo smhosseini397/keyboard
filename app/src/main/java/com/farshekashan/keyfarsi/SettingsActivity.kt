@@ -41,7 +41,7 @@ class SettingsActivity : Activity() {
         val tabBar = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
-            setPadding(dp(8), dp(8), dp(8), 0)
+            setPadding(dp(4), dp(8), dp(4), 0)
         }
 
         val tabContent = FrameLayout(this).apply {
@@ -54,13 +54,16 @@ class SettingsActivity : Activity() {
             isFillViewport = true
             addView(createGeneralTab())
         }
-
         val standardScroll = ScrollView(this).apply {
             isFillViewport = true
             addView(createStandardTab())
             visibility = View.GONE
         }
-
+        val englishScroll = ScrollView(this).apply {
+            isFillViewport = true
+            addView(createEnglishTab())
+            visibility = View.GONE
+        }
         val themeScroll = ScrollView(this).apply {
             isFillViewport = true
             addView(createThemeTab())
@@ -69,6 +72,7 @@ class SettingsActivity : Activity() {
 
         tabContent.addView(generalScroll)
         tabContent.addView(standardScroll)
+        tabContent.addView(englishScroll)
         tabContent.addView(themeScroll)
 
         val btnGeneral = Button(this).apply {
@@ -76,6 +80,7 @@ class SettingsActivity : Activity() {
             setOnClickListener {
                 generalScroll.visibility = View.VISIBLE
                 standardScroll.visibility = View.GONE
+                englishScroll.visibility = View.GONE
                 themeScroll.visibility = View.GONE
             }
         }
@@ -84,6 +89,16 @@ class SettingsActivity : Activity() {
             setOnClickListener {
                 generalScroll.visibility = View.GONE
                 standardScroll.visibility = View.VISIBLE
+                englishScroll.visibility = View.GONE
+                themeScroll.visibility = View.GONE
+            }
+        }
+        val btnEnglish = Button(this).apply {
+            text = "انگلیسی"
+            setOnClickListener {
+                generalScroll.visibility = View.GONE
+                standardScroll.visibility = View.GONE
+                englishScroll.visibility = View.VISIBLE
                 themeScroll.visibility = View.GONE
             }
         }
@@ -92,13 +107,15 @@ class SettingsActivity : Activity() {
             setOnClickListener {
                 generalScroll.visibility = View.GONE
                 standardScroll.visibility = View.GONE
+                englishScroll.visibility = View.GONE
                 themeScroll.visibility = View.VISIBLE
             }
         }
 
-        tabBar.addView(btnGeneral, LinearLayout.LayoutParams(0, dp(48), 1f).apply { setMargins(dp(4), 0, dp(4), 0) })
-        tabBar.addView(btnStandard, LinearLayout.LayoutParams(0, dp(48), 1f).apply { setMargins(dp(4), 0, dp(4), 0) })
-        tabBar.addView(btnTheme, LinearLayout.LayoutParams(0, dp(48), 1f).apply { setMargins(dp(4), 0, dp(4), 0) })
+        tabBar.addView(btnGeneral, LinearLayout.LayoutParams(0, dp(48), 1f).apply { setMargins(dp(2), 0, dp(2), 0) })
+        tabBar.addView(btnStandard, LinearLayout.LayoutParams(0, dp(48), 1f).apply { setMargins(dp(2), 0, dp(2), 0) })
+        tabBar.addView(btnEnglish, LinearLayout.LayoutParams(0, dp(48), 1f).apply { setMargins(dp(2), 0, dp(2), 0) })
+        tabBar.addView(btnTheme, LinearLayout.LayoutParams(0, dp(48), 1f).apply { setMargins(dp(2), 0, dp(2), 0) })
 
         mainLayout.addView(tabBar)
         mainLayout.addView(tabContent)
@@ -144,14 +161,14 @@ class SettingsActivity : Activity() {
         }
         outer.addView(choose, match())
 
-        outer.addView(sectionTitle("تنظیمات عمومی (حالت عمودی)"))
-        addNumberField(outer, "عرض کیبورد (dp)", "keyboard_width", 360, 0, 1200)
-        addNumberField(outer, "ارتفاع کل کیبورد (dp)", "keyboard_height", 270, 150, 800)
-        addNumberField(outer, "عرض دکمه‌ها (dp) - ۰ برای خودکار", "key_width", 0, 0, 200)
-        addNumberField(outer, "ارتفاع دکمه‌ها (dp)", "key_height", 48, 30, 120)
-        addNumberField(outer, "فاصله بین دکمه‌ها (dp)", "key_gap", 4, 0, 20)
+        outer.addView(sectionTitle("تنظیمات فارسی (عمودی)"))
+        addNumberField(outer, "عرض کیبورد فارسی (dp)", "fa_keyboard_width", 360, 0, 1200)
+        addNumberField(outer, "ارتفاع کل کیبورد فارسی (dp)", "fa_keyboard_height", 270, 150, 800)
+        addNumberField(outer, "عرض دکمه‌ها (dp) - ۰ برای خودکار", "fa_key_width", 0, 0, 200)
+        addNumberField(outer, "ارتفاع دکمه‌ها (dp)", "fa_key_height", 48, 30, 120)
+        addNumberField(outer, "فاصله بین دکمه‌ها (dp)", "fa_key_gap", 4, 0, 20)
 
-        outer.addView(sectionTitle("تنظیمات عمومی (حالت افقی)"))
+        outer.addView(sectionTitle("تنظیمات فارسی (افقی)"))
         addNumberField(outer, "عرض کیبورد در حالت افقی (dp) - ۰ برای خودکار", "keyboard_width_landscape", 0, 0, 1200)
         addNumberField(outer, "ارتفاع کیبورد در حالت افقی (dp) - ۰ برای خودکار", "keyboard_height_landscape", 0, 0, 800)
 
@@ -195,6 +212,32 @@ class SettingsActivity : Activity() {
         addNumberField(outer, "ارتفاع دکمه‌های استاندارد (dp) - ۰ برای خودکار", "standard_key_height", 0, 0, 120)
         addNumberField(outer, "فاصله بین دکمه‌ها (dp) - ۰ برای پیش‌فرض", "standard_key_gap", -1, -1, 20)
         addNumberField(outer, "مقیاس کیبورد استاندارد (٪)", "standard_scale", 100, 50, 150)
+
+        return outer
+    }
+
+    private fun createEnglishTab(): LinearLayout {
+        val outer = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(22), dp(16), dp(22), dp(24))
+        }
+
+        val title = TextView(this).apply {
+            text = "کیبورد انگلیسی"
+            textSize = 24f
+            gravity = Gravity.CENTER
+            setTextColor(0xFF332B45.toInt())
+            setPadding(0, dp(8), 0, dp(20))
+            setTypeface(null, android.graphics.Typeface.BOLD)
+        }
+        outer.addView(title)
+
+        outer.addView(sectionTitle("تنظیمات انگلیسی (عمودی)"))
+        addNumberField(outer, "عرض کیبورد انگلیسی (dp)", "en_keyboard_width", 360, 0, 1200)
+        addNumberField(outer, "ارتفاع کل کیبورد انگلیسی (dp)", "en_keyboard_height", 270, 150, 800)
+        addNumberField(outer, "عرض دکمه‌ها (dp) - ۰ برای خودکار", "en_key_width", 0, 0, 200)
+        addNumberField(outer, "ارتفاع دکمه‌ها (dp)", "en_key_height", 48, 30, 120)
+        addNumberField(outer, "فاصله بین دکمه‌ها (dp)", "en_key_gap", 4, 0, 20)
 
         return outer
     }
@@ -254,13 +297,18 @@ class SettingsActivity : Activity() {
             text = "بازنشانی همه تنظیمات به پیش‌فرض"
             setOnClickListener {
                 prefs.edit()
-                    .putInt("keyboard_width", 360)
-                    .putInt("keyboard_height", 270)
+                    .putInt("fa_keyboard_width", 360)
+                    .putInt("fa_keyboard_height", 270)
+                    .putInt("en_keyboard_width", 360)
+                    .putInt("en_keyboard_height", 270)
                     .putInt("keyboard_width_landscape", 0)
                     .putInt("keyboard_height_landscape", 0)
-                    .putInt("key_width", 0)
-                    .putInt("key_height", 48)
-                    .putInt("key_gap", 4)
+                    .putInt("fa_key_width", 0)
+                    .putInt("fa_key_height", 48)
+                    .putInt("fa_key_gap", 4)
+                    .putInt("en_key_width", 0)
+                    .putInt("en_key_height", 48)
+                    .putInt("en_key_gap", 4)
                     .putInt("standard_keyboard_width", 0)
                     .putInt("standard_keyboard_height", 0)
                     .putInt("standard_key_width", 0)
