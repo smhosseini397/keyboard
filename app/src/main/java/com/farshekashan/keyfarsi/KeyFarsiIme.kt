@@ -54,7 +54,6 @@ class KeyFarsiIme : InputMethodService() {
     private val DEFAULT_KEY_WIDTH = 34
     private val DEFAULT_KEY_HEIGHT = 48
     private val DEFAULT_KEY_GAP = 5
-    private val DEFAULT_STANDARD_SCALE = 100
 
     private fun t(key: String): String {
         return when (key) {
@@ -219,6 +218,7 @@ class KeyFarsiIme : InputMethodService() {
             background = Color.rgb(40, 40, 60); normalKey = Color.rgb(100, 100, 150); foreground = Color.WHITE; accent = Color.rgb(0, 200, 255)
         }
 
+        // ✅ خواندن تنظیمات عرض و ارتفاع با احترام به مقدار ۰
         val requestedWidth = prefs.getInt("keyboard_width", DEFAULT_KEYBOARD_WIDTH)
         val requestedWidthLandscape = prefs.getInt("keyboard_width_landscape", 0)
         val requestedHeight = prefs.getInt("keyboard_height", DEFAULT_KEYBOARD_HEIGHT)
@@ -235,7 +235,7 @@ class KeyFarsiIme : InputMethodService() {
         val heightToUse = if (isLandscape) {
             if (requestedHeightLandscape > 0) dp(requestedHeightLandscape) else (screenHeight * 0.45).toInt()
         } else {
-            dp(requestedHeight)
+            dp(if (requestedHeight > 0) requestedHeight else DEFAULT_KEYBOARD_HEIGHT)
         }
 
         val root = LinearLayout(this).apply {
@@ -270,7 +270,6 @@ class KeyFarsiIme : InputMethodService() {
         return root
     }
 
-    // ✅ دکمه ایموجی از نوار ابزار حذف شد
     private fun buildToolbar(root: LinearLayout, keyBg: Int, fg: Int, accent: Int) {
         val bar = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -279,13 +278,11 @@ class KeyFarsiIme : InputMethodService() {
         bar.addView(label(t("toolbar_brand"), 13f, fg).apply { setTypeface(null, Typeface.BOLD) }, LinearLayout.LayoutParams(0, dp(34), 1f))
         bar.addView(actionButton(t("toolbar_numbers"), keyBg, fg) { toggleMode { numberMode = !numberMode } })
         bar.addView(actionButton(t("toolbar_symbols"), keyBg, fg) { toggleMode { symbolMode = !symbolMode } })
-        // دکمه تنظیمات قبل از ایموجی (حذف شده)
         bar.addView(actionButton(t("toolbar_settings"), keyBg, fg) {
             startActivity(Intent(this@KeyFarsiIme, SettingsActivity::class.java).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             })
         })
-        // دکمه ایموجی حذف شد
         bar.addView(actionButton(t("toolbar_clipboard"), keyBg, fg) {
             numberMode = false; symbolMode = false; emojiMode = false; clipboardMode = true; refreshKeyboard()
         })
@@ -389,36 +386,36 @@ class KeyFarsiIme : InputMethodService() {
         return try { JSONObject(prefs.getString("bigrams", "{}") ?: "{}") } catch (_: Exception) { JSONObject() }
     }
 
-    // ✅ استفاده از تنظیمات اختصاصی برای هر زبان (فارسی/انگلیسی) و حالت استاندارد
+    // ✅ بازنویسی کامل برای جلوگیری از خروج دکمه‌ها از کادر
     private fun buildLetterKeyboard(root: LinearLayout, keyBg: Int, fg: Int, accent: Int) {
         val standardBig = prefs.getBoolean("standard_big_keyboard", false)
         val rows = if (english) englishRows else persianRows
         val screenWidthPx = resources.displayMetrics.widthPixels
         val usableWidthPx = screenWidthPx - dp(8)
 
-        // ✅ خواندن تنظیمات اختصاصی زبان
         val prefix = if (english) "en_" else "fa_"
-        val configuredWidth = prefs.getInt("${prefix}keyboard_width", prefs.getInt("keyboard_width", DEFAULT_KEYBOARD_WIDTH))
-        val configuredHeight = prefs.getInt("${prefix}keyboard_height", prefs.getInt("keyboard_height", DEFAULT_KEYBOARD_HEIGHT))
-        val configuredKeyWidth = prefs.getInt("${prefix}key_width", prefs.getInt("key_width", DEFAULT_KEY_WIDTH))
-        val configuredKeyHeight = prefs.getInt("${prefix}key_height", prefs.getInt("key_height", DEFAULT_KEY_HEIGHT))
-        val configuredGap = prefs.getInt("${prefix}key_gap", prefs.getInt("key_gap", DEFAULT_KEY_GAP))
+        val rawKeyWidth = prefs.getInt("${prefix}key_width", 0)
+        val rawKeyHeight = prefs.getInt("${prefix}key_height", 0)
+        val rawGap = prefs.getInt("${prefix}key_gap", 0)
+
+        // ✅ اگر مقدار تنظیمات ۰ بود، از پیش‌فرض استفاده کن
+        val configuredKeyWidth = if (rawKeyWidth > 0) rawKeyWidth else DEFAULT_KEY_WIDTH
+        val configuredKeyHeight = if (rawKeyHeight > 0) rawKeyHeight else DEFAULT_KEY_HEIGHT
+        val configuredGap = if (rawGap > 0) rawGap else DEFAULT_KEY_GAP
 
         if (standardBig) {
-            // تنظیمات اختصاصی استاندارد
-            val stdWidth = prefs.getInt("standard_keyboard_width", 0)
-            val stdHeight = prefs.getInt("standard_keyboard_height", 0)
             val stdKeyWidth = prefs.getInt("standard_key_width", 0)
             val stdKeyHeight = prefs.getInt("standard_key_height", 0)
             val stdGap = prefs.getInt("standard_key_gap", -1)
             val scale = prefs.getInt("standard_scale", 100).coerceIn(50, 150) / 100f
 
-            val usableStdWidth = if (stdWidth > 0) dp(stdWidth) else usableWidthPx
-            val gapPx = if (stdGap >= 0) dp(stdGap) else if (isLandscape) dp(2) else dp(6)
+            val gapPx = if (stdGap >= 0) dp(stdGap) else dp(configuredGap)
             val columns = 10
             
-            val baseKeyWidth = if (stdKeyWidth > 0) dp(stdKeyWidth) else ((usableStdWidth - (columns * gapPx * 2)) / columns)
-            val keyWidthPx = (baseKeyWidth * scale).toInt().coerceAtLeast(dp(20))
+            // ✅ محاسبه عرض دکمه به‌گونه‌ای که از کادر بیرون نزند
+            val maxAvailableWidth = usableWidthPx - (columns * gapPx * 2)
+            val calculatedKeyWidth = if (stdKeyWidth > 0) dp(stdKeyWidth) else maxAvailableWidth / columns
+            val keyWidthPx = (calculatedKeyWidth * scale).toInt().coerceIn(dp(20), maxAvailableWidth / columns)
             
             val baseKeyHeight = if (stdKeyHeight > 0) dp(stdKeyHeight) else if (isLandscape) dp(40) else dp(56)
             val keyHeightPx = (baseKeyHeight * scale).toInt().coerceAtLeast(dp(24))
@@ -460,25 +457,21 @@ class KeyFarsiIme : InputMethodService() {
             root.addView(bottom)
 
         } else {
-            // ✅ استفاده از تنظیمات اختصاصی زبان
-            val gapDp = configuredGap
-            val columns = if (configuredKeyWidth > 0) {
-                val manualKeyPx = dp(configuredKeyWidth)
-                val gapPx2 = dp(gapDp)
-                ((usableWidthPx - gapPx2 * 2) / (manualKeyPx + gapPx2 * 2)).coerceIn(2, 12)
-            } else rows.maxOf { it.length }
+            // ✅ محاسبه خودکار تعداد ستون‌ها بر اساس عرض دکمه و فاصله
+            val keyWidthPx = dp(configuredKeyWidth)
+            val gapPx = dp(configuredGap)
+            val effectiveKeyHeight = dp(configuredKeyHeight)
 
-            val gapPx = dp(gapDp)
-            val keyWidthPx = ((usableWidthPx - columns * gapPx * 2) / columns).coerceAtLeast(dp(24))
-            val effectiveKeyHeight = if (configuredKeyHeight > 0) dp(configuredKeyHeight) else if (isLandscape) dp(36) else dp(DEFAULT_KEY_HEIGHT)
-
+            // حداکثر تعداد ستونی که در عرض صفحه جا می‌شود
+            val maxColumns = ((usableWidthPx + gapPx) / (keyWidthPx + gapPx * 2)).coerceAtLeast(1)
+            
             val allChars = mutableListOf<Char>()
             rows.forEach { row -> row.forEach { ch -> allChars.add(ch) } }
-            val chunks = allChars.chunked(columns)
+            val chunks = allChars.chunked(maxColumns)
 
             chunks.forEachIndexed { index, chunk ->
                 val line = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
-                val emptyCount = columns - chunk.size
+                val emptyCount = maxColumns - chunk.size
                 val emptyLeft = emptyCount / 2
                 val emptyRight = emptyCount - emptyLeft
 
@@ -587,7 +580,7 @@ class KeyFarsiIme : InputMethodService() {
         root.addView(bottom)
     }
 
-    // ✅ دکمه بازگشت به حروف واضح در صفحه اعداد (عمودی و افقی)
+    // ✅ دکمه بازگشت به حروف در صفحه اعداد (در همه حالت‌ها دیده می‌شود)
     private fun buildNumberPad(root: LinearLayout, keyBg: Int, fg: Int) {
         val rows = listOf(
             listOf("۱", "۲", "۳"),
@@ -616,7 +609,7 @@ class KeyFarsiIme : InputMethodService() {
         root.addView(symLine)
 
         val controls = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
-        // ✅ دکمه بازگشت به حروف در ابتدای ردیف
+        // ✅ دکمه بازگشت به حروف در ردیف کنترل‌ها (در همه حالت‌ها)
         controls.addView(actionButton(t("mode_letters"), keyBg, fg) { numberMode = false; refreshKeyboard() })
         controls.addView(actionButton(t("mode_symbols"), keyBg, fg) { symbolMode = true; numberMode = false; refreshKeyboard() })
         controls.addView(actionButton(t("mode_emoji"), keyBg, fg) { emojiMode = true; numberMode = false; refreshKeyboard() })
@@ -720,11 +713,15 @@ class KeyFarsiIme : InputMethodService() {
     }
 
     private fun keyHeight(): Int {
-        val configured = prefs.getInt("key_height", DEFAULT_KEY_HEIGHT)
+        val configured = prefs.getInt("key_height", 0)
         return dp(if (configured <= 0) DEFAULT_KEY_HEIGHT else configured)
     }
 
-    private fun gap(): Int = prefs.getInt("key_gap", DEFAULT_KEY_GAP).coerceAtLeast(0)
+    private fun gap(): Int {
+        val configured = prefs.getInt("key_gap", 0)
+        return if (configured <= 0) DEFAULT_KEY_GAP else configured
+    }
+
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
 
     private fun label(text: String, size: Float, color: Int) = TextView(this).apply {
