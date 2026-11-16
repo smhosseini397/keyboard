@@ -33,12 +33,88 @@ class SettingsActivity : Activity() {
             )
         }
 
+        val mainLayout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setBackgroundColor(0xFFF5F2FA.toInt())
+        }
+
+        val tabBar = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER
+            setPadding(dp(8), dp(8), dp(8), 0)
+        }
+
+        val tabContent = FrameLayout(this).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f
+            )
+        }
+
+        val generalScroll = ScrollView(this).apply {
+            isFillViewport = true
+            addView(createGeneralTab())
+        }
+
+        val standardScroll = ScrollView(this).apply {
+            isFillViewport = true
+            addView(createStandardTab())
+            visibility = View.GONE
+        }
+
+        val themeScroll = ScrollView(this).apply {
+            isFillViewport = true
+            addView(createThemeTab())
+            visibility = View.GONE
+        }
+
+        tabContent.addView(generalScroll)
+        tabContent.addView(standardScroll)
+        tabContent.addView(themeScroll)
+
+        val btnGeneral = Button(this).apply {
+            text = "عمومی"
+            setOnClickListener {
+                generalScroll.visibility = View.VISIBLE
+                standardScroll.visibility = View.GONE
+                themeScroll.visibility = View.GONE
+            }
+        }
+        val btnStandard = Button(this).apply {
+            text = "استاندارد"
+            setOnClickListener {
+                generalScroll.visibility = View.GONE
+                standardScroll.visibility = View.VISIBLE
+                themeScroll.visibility = View.GONE
+            }
+        }
+        val btnTheme = Button(this).apply {
+            text = "تم و ظاهر"
+            setOnClickListener {
+                generalScroll.visibility = View.GONE
+                standardScroll.visibility = View.GONE
+                themeScroll.visibility = View.VISIBLE
+            }
+        }
+
+        tabBar.addView(btnGeneral, LinearLayout.LayoutParams(0, dp(48), 1f).apply { setMargins(dp(4), 0, dp(4), 0) })
+        tabBar.addView(btnStandard, LinearLayout.LayoutParams(0, dp(48), 1f).apply { setMargins(dp(4), 0, dp(4), 0) })
+        tabBar.addView(btnTheme, LinearLayout.LayoutParams(0, dp(48), 1f).apply { setMargins(dp(4), 0, dp(4), 0) })
+
+        mainLayout.addView(tabBar)
+        mainLayout.addView(tabContent)
+        setContentView(mainLayout)
+
+        ViewCompat.setOnApplyWindowInsetsListener(mainLayout) { view, insets ->
+            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            view.setPadding(bars.left, bars.top, bars.right, bars.bottom)
+            insets
+        }
+    }
+
+    private fun createGeneralTab(): LinearLayout {
         val outer = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(22), dp(24), dp(22), dp(24))
-            setBackgroundColor(0xFFF5F2FA.toInt())
-            clipToPadding = false
-            fitsSystemWindows = false
+            setPadding(dp(22), dp(16), dp(22), dp(24))
         }
 
         val title = TextView(this).apply {
@@ -50,15 +126,6 @@ class SettingsActivity : Activity() {
             setTypeface(null, android.graphics.Typeface.BOLD)
         }
         outer.addView(title)
-
-        val intro = TextView(this).apply {
-            text = "کیبورد فارسی و انگلیسی با صفحه اعداد ماشین‌حسابی و کلیپ‌بورد"
-            textSize = 15f
-            gravity = Gravity.CENTER
-            setPadding(0, 0, 0, dp(20))
-            setTextColor(0xFF6B6480.toInt())
-        }
-        outer.addView(intro)
 
         val enable = Button(this).apply {
             text = "۱. فعال‌سازی کیبورد"
@@ -77,28 +144,76 @@ class SettingsActivity : Activity() {
         }
         outer.addView(choose, match())
 
-        outer.addView(sectionTitle("تنظیمات اندازه (حالت عمودی)"))
-
+        outer.addView(sectionTitle("تنظیمات عمومی (حالت عمودی)"))
         addNumberField(outer, "عرض کیبورد (dp)", "keyboard_width", 360, 0, 1200)
         addNumberField(outer, "ارتفاع کل کیبورد (dp)", "keyboard_height", 270, 150, 800)
         addNumberField(outer, "عرض دکمه‌ها (dp) - ۰ برای خودکار", "key_width", 0, 0, 200)
         addNumberField(outer, "ارتفاع دکمه‌ها (dp)", "key_height", 48, 30, 120)
         addNumberField(outer, "فاصله بین دکمه‌ها (dp)", "key_gap", 4, 0, 20)
 
-        outer.addView(sectionTitle("تنظیمات اندازه (حالت افقی)"))
-
-        // ✅ تنظیمات عرض و ارتفاع در حالت افقی
+        outer.addView(sectionTitle("تنظیمات عمومی (حالت افقی)"))
         addNumberField(outer, "عرض کیبورد در حالت افقی (dp) - ۰ برای خودکار", "keyboard_width_landscape", 0, 0, 1200)
         addNumberField(outer, "ارتفاع کیبورد در حالت افقی (dp) - ۰ برای خودکار", "keyboard_height_landscape", 0, 0, 800)
 
-        outer.addView(sectionTitle("تنظیمات کیبورد استاندارد"))
+        return outer
+    }
 
-        // ✅ تنظیمات اختصاصی برای کیبورد استاندارد
-        addNumberField(outer, "عرض دکمه استاندارد (dp) - ۰ برای خودکار", "standard_key_width", 0, 0, 200)
-        addNumberField(outer, "ارتفاع دکمه استاندارد (dp) - ۰ برای خودکار", "standard_key_height", 0, 0, 120)
+    private fun createStandardTab(): LinearLayout {
+        val outer = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(22), dp(16), dp(22), dp(24))
+        }
+
+        val title = TextView(this).apply {
+            text = "کیبورد استاندارد"
+            textSize = 24f
+            gravity = Gravity.CENTER
+            setTextColor(0xFF332B45.toInt())
+            setPadding(0, dp(8), 0, dp(20))
+            setTypeface(null, android.graphics.Typeface.BOLD)
+        }
+        outer.addView(title)
+
+        val standardBig = CheckBox(this).apply {
+            text = "فعال‌سازی کیبورد استاندارد"
+            isChecked = prefs.getBoolean("standard_big_keyboard", false)
+            setOnCheckedChangeListener { _, checked ->
+                prefs.edit().putBoolean("standard_big_keyboard", checked).apply()
+                Toast.makeText(
+                    this@SettingsActivity,
+                    "برای اعمال تغییرات، کیبورد را ببندید و دوباره باز کنید",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        }
+        outer.addView(standardBig)
+
+        outer.addView(sectionTitle("تنظیمات اندازه کیبورد استاندارد"))
+        addNumberField(outer, "عرض کیبورد استاندارد (dp) - ۰ برای خودکار", "standard_keyboard_width", 0, 0, 1200)
+        addNumberField(outer, "ارتفاع کیبورد استاندارد (dp) - ۰ برای خودکار", "standard_keyboard_height", 0, 0, 800)
+        addNumberField(outer, "عرض دکمه‌های استاندارد (dp) - ۰ برای خودکار", "standard_key_width", 0, 0, 200)
+        addNumberField(outer, "ارتفاع دکمه‌های استاندارد (dp) - ۰ برای خودکار", "standard_key_height", 0, 0, 120)
+        addNumberField(outer, "فاصله بین دکمه‌ها (dp) - ۰ برای پیش‌فرض", "standard_key_gap", -1, -1, 20)
         addNumberField(outer, "مقیاس کیبورد استاندارد (٪)", "standard_scale", 100, 50, 150)
 
-        outer.addView(sectionTitle("ظاهر و تم"))
+        return outer
+    }
+
+    private fun createThemeTab(): LinearLayout {
+        val outer = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(22), dp(16), dp(22), dp(24))
+        }
+
+        val title = TextView(this).apply {
+            text = "ظاهر و تم"
+            textSize = 24f
+            gravity = Gravity.CENTER
+            setTextColor(0xFF332B45.toInt())
+            setPadding(0, dp(8), 0, dp(20))
+            setTypeface(null, android.graphics.Typeface.BOLD)
+        }
+        outer.addView(title)
 
         val dark = CheckBox(this).apply {
             text = "تم تیره (برای تم پیش‌فرض)"
@@ -135,20 +250,6 @@ class SettingsActivity : Activity() {
         }
         outer.addView(spinner, match())
 
-        val standardBig = CheckBox(this).apply {
-            text = "کیبورد بزرگ استاندارد (حروف سر جای استاندارد با فاصله بیشتر)"
-            isChecked = prefs.getBoolean("standard_big_keyboard", false)
-            setOnCheckedChangeListener { _, checked ->
-                prefs.edit().putBoolean("standard_big_keyboard", checked).apply()
-                Toast.makeText(
-                    this@SettingsActivity,
-                    "برای اعمال تغییرات، کیبورد را ببندید و دوباره باز کنید",
-                    Toast.LENGTH_SHORT
-                ).show()
-            }
-        }
-        outer.addView(standardBig)
-
         val reset = Button(this).apply {
             text = "بازنشانی همه تنظیمات به پیش‌فرض"
             setOnClickListener {
@@ -160,8 +261,11 @@ class SettingsActivity : Activity() {
                     .putInt("key_width", 0)
                     .putInt("key_height", 48)
                     .putInt("key_gap", 4)
+                    .putInt("standard_keyboard_width", 0)
+                    .putInt("standard_keyboard_height", 0)
                     .putInt("standard_key_width", 0)
                     .putInt("standard_key_height", 0)
+                    .putInt("standard_key_gap", -1)
                     .putInt("standard_scale", 100)
                     .putBoolean("dark", false)
                     .putString("theme", "default")
@@ -174,32 +278,17 @@ class SettingsActivity : Activity() {
         outer.addView(reset, match())
 
         val note = TextView(this).apply {
-            text = "تغییر اندازه پس از باز و بسته کردن کیبورد اعمال می‌شود.\n" +
-                "مقدار ۰ در هر فیلد به معنای «خودکار» است.\n" +
-                "برای کیبورد استاندارد، اگر عرض/ارتفاع دکمه را ۰ بگذارید، به صورت خودکار محاسبه می‌شود."
+            text = "مقدار ۰ در هر فیلد به معنای «خودکار» است."
             textSize = 12f
             setPadding(0, dp(12), 0, dp(8))
             setTextColor(0xFF8A8399.toInt())
         }
         outer.addView(note)
 
-        val scroller = ScrollView(this).apply {
-            isFillViewport = true
-            clipToPadding = false
-            fitsSystemWindows = false
-            addView(outer)
-        }
-        setContentView(scroller)
-
-        ViewCompat.setOnApplyWindowInsetsListener(scroller) { view, insets ->
-            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            view.setPadding(bars.left, bars.top, bars.right, bars.bottom)
-            insets
-        }
+        return outer
     }
 
-    private fun dp(value: Int): Int =
-        (value * resources.displayMetrics.density).toInt()
+    private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
 
     private fun match() = LinearLayout.LayoutParams(
         LinearLayout.LayoutParams.MATCH_PARENT,
